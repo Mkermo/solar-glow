@@ -75,9 +75,6 @@ const DashboardSidebar = () => {
 
 export default DashboardSidebar;
 
-// In your Navbar component where the language toggle button is defined
-
-// Change from:
 <Button
   variant="ghost"
   size="icon"
