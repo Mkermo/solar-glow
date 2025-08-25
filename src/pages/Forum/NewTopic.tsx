@@ -1,6 +1,6 @@
 import { useState, FormEvent, useEffect } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/supabase";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
@@ -14,13 +14,16 @@ import { ChevronLeft, Send, Loader2 } from "lucide-react";
 const NewTopic = () => {
   const { categoryId } = useParams<{ categoryId: string }>();
   const { t } = useLanguage();
-  const { user, loading } = useAuth(); // Add loading state
+  const { user, loading } = useAuth(); 
   const { toast } = useToast();
   const navigate = useNavigate();
   
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [categories, setCategories] = useState<any[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState<string>(categoryId || '');
+  const [categoriesLoading, setCategoriesLoading] = useState<boolean>(!categoryId);
 
   // Use useEffect for authentication check
   useEffect(() => {
@@ -28,12 +31,47 @@ const NewTopic = () => {
       toast({
         title: t("Authentication Required", "مطلوب تسجيل الدخول"),
         description: t("Please login to create a topic.", "يرجى تسجيل الدخول لإنشاء موضوع."),
-
         variant: "destructive"
       });
-      navigate('/login', { state: { from: `/forum/new-topic/${categoryId}` } });
+      navigate('/login', { state: { from: categoryId ? `/forum/new-topic/${categoryId}` : '/forum/new-topic' } });
     }
   }, [user, loading, navigate, categoryId, t]);
+
+  // Fetch categories if no categoryId is provided
+  useEffect(() => {
+    if (!categoryId) {
+      const fetchCategories = async () => {
+        setCategoriesLoading(true);
+        try {
+          const { data, error } = await supabase
+            .from('forum_categories')
+            .select('id, name')
+            .order('name');
+            
+          if (error) {
+            console.error('Error fetching categories:', error);
+            toast({
+              title: t("Error", "خطأ"),
+              description: t("Failed to load categories", "فشل في تحميل الفئات"),
+              variant: "destructive"
+            });
+          } else if (data?.length) {
+            setCategories(data);
+            setSelectedCategory(data[0].id);
+            console.log("Categories loaded:", data);
+          } else {
+            console.log("No categories found");
+          }
+        } catch (err) {
+          console.error("Error in fetchCategories:", err);
+        } finally {
+          setCategoriesLoading(false);
+        }
+      };
+      
+      fetchCategories();
+    }
+  }, [categoryId, t, toast]);
 
   // Show loading state
   if (loading) {
@@ -55,6 +93,17 @@ const NewTopic = () => {
       });
       return;
     }
+    
+    // Check if category is selected when no categoryId is provided
+    const effectiveCategoryId = categoryId || selectedCategory;
+    if (!effectiveCategoryId) {
+      toast({
+        title: t("Missing category", "الفئة مفقودة"),
+        description: t("Please select a category for your topic.", "يرجى اختيار فئة لموضوعك."),
+        variant: "destructive"
+      });
+      return;
+    }
 
     // Check if user is still authenticated
     const { data: { session }, error: sessionError } = await supabase.auth.getSession();
@@ -65,7 +114,7 @@ const NewTopic = () => {
         description: t("Please login again to continue.", "يرجى تسجيل الدخول مرة أخرى للمتابعة."),
         variant: "destructive"
       });
-      navigate('/login', { state: { from: `/forum/new-topic/${categoryId}` } });
+      navigate('/login', { state: { from: categoryId ? `/forum/new-topic/${categoryId}` : '/forum/new-topic' } });
       return;
     }
     
@@ -78,7 +127,7 @@ const NewTopic = () => {
           title: title.trim(),
           content: content.trim(),
           user_id: session.user.id,
-          category_id: categoryId,
+          category_id: effectiveCategoryId,
           created_at: new Date().toISOString()
         })
         .select()
@@ -101,7 +150,12 @@ const NewTopic = () => {
       if (data) {
         navigate(`/forum/topic/${data.id}`);
       } else {
-        navigate(`/forum/category/${categoryId}`);
+        const effectiveCategoryId = categoryId || selectedCategory;
+        if (effectiveCategoryId) {
+          navigate(`/forum/category/${effectiveCategoryId}`);
+        } else {
+          navigate('/forum');
+        }
       }
     } catch (error) {
       console.error('Error creating topic:', error);
@@ -121,9 +175,11 @@ const NewTopic = () => {
   return (
     <div className="container py-8">
       <Button variant="ghost" asChild className="mb-6">
-        <Link to={`/forum/category/${categoryId}`}>
+        <Link to={categoryId ? `/forum/category/${categoryId}` : '/forum'}>
           <ChevronLeft className="mr-2 h-4 w-4" />
-          {t("Back to Category", "العودة إلى الفئة")}
+          {categoryId 
+            ? t("Back to Category", "العودة إلى الفئة") 
+            : t("Back to Forum", "العودة إلى المنتدى")}
         </Link>
       </Button>
       
@@ -135,6 +191,38 @@ const NewTopic = () => {
             <CardTitle>{t("Topic Details", "تفاصيل الموضوع")}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
+            {/* Category dropdown when no category is provided in URL */}
+            {!categoryId && (
+              <div className="space-y-2">
+                <Label htmlFor="category">{t("Category", "الفئة")}</Label>
+                {categoriesLoading ? (
+                  <div className="flex h-10 items-center">
+                    <div className="animate-spin h-5 w-5 border-b-2 border-gray-900 rounded-full mr-2"></div>
+                    {t("Loading categories...", "جار تحميل الفئات...")}
+                  </div>
+                ) : categories.length > 0 ? (
+                  <select
+                    id="category"
+                    name="category"
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    value={selectedCategory}
+                    onChange={(e) => setSelectedCategory(e.target.value)}
+                    disabled={isSubmitting}
+                    required
+                  >
+                    {categories.map(category => (
+                      <option key={category.id} value={category.id}>
+                        {category.name}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <div className="p-3 border border-yellow-300 bg-yellow-50 text-yellow-700 rounded-md">
+                    {t("No categories available. Please create a category first.", "لا توجد فئات متاحة. يرجى إنشاء فئة أولاً.")}
+                  </div>
+                )}
+              </div>
+            )}
             <div className="space-y-2">
               <Label htmlFor="title">{t("Title", "العنوان")}</Label>
               <Input
@@ -167,7 +255,13 @@ const NewTopic = () => {
             <Button
               type="button"
               variant="outline"
-              onClick={() => navigate(`/forum/category/${categoryId}`)}
+              onClick={() => {
+                if (categoryId) {
+                  navigate(`/forum/category/${categoryId}`);
+                } else {
+                  navigate('/forum');
+                }
+              }}
               disabled={isSubmitting}
             >
               {t("Cancel", "إلغاء")}

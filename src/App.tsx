@@ -9,6 +9,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { ProtectedRoute } from '@/components/ProtectedRoute'; // Only import ProtectedRoute from here
 import { useEffect } from 'react';
 import { setupStorage } from '@/lib/setupStorage';
+import ForumCategoriesInitializer from '@/components/ForumCategoriesInitializer';
 import Footer from "@/components/Footer";
 import MainLayout from "./layouts/MainLayout";
 import Index from "./pages/Index";
@@ -55,6 +56,7 @@ function App() {
         <TooltipProvider>
           <AuthProvider>
             <CartProvider>
+              <ForumCategoriesInitializer />
               <BrowserRouter>
                 <MainLayout>
                   <Routes>
@@ -92,6 +94,14 @@ function App() {
                     <Route path="/forum" element={<Forum />} />
                     <Route path="/forum/category/:categoryId" element={<CategoryView />} />
                     <Route path="/forum/topic/:topicId" element={<TopicView />} />
+                    <Route 
+                      path="/forum/new-topic" 
+                      element={
+                        <ProtectedRoute>
+                          <NewTopic />
+                        </ProtectedRoute>
+                      } 
+                    />
                     <Route 
                       path="/forum/new-topic/:categoryId" 
                       element={
