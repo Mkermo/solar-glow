@@ -36,7 +36,9 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
 import { useToast } from "@/hooks/use-toast";
-import { Send } from "lucide-react";
+import { ArrowRight, Download, ExternalLink, Send, Sun, Battery, Zap, Home, PanelTop, BarChart4, Sparkles } from "lucide-react";
+import ScrollReveal from "@/components/ScrollReveal";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 const formSchema = z.object({
   name: z.string().min(2, {
@@ -53,6 +55,7 @@ const formSchema = z.object({
 
 const SolarEducation = () => {
   const { toast } = useToast();
+  const { lang, t } = useLanguage();
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -72,32 +75,130 @@ const SolarEducation = () => {
   };
 
   return (
-    <div className="container mx-auto px-4 py-8 mb-10">
-      <div className="text-center mb-8">
-        <h1 className="text-3xl font-bold mb-2">الطاقة الشمسية لغزة</h1>
-        <h2 className="text-xl text-muted-foreground mb-6">Solar Energy for Gaza</h2>
-        <p className="max-w-2xl mx-auto text-lg">
-          مصدر طاقة مستدام ومتجدد يمكن أن يساعد في تلبية احتياجات الطاقة في غزة
-        </p>
-      </div>
+    <div className="container mx-auto px-4 py-8 mb-10" dir={lang === "ar" ? "rtl" : "ltr"}>
+      {/* Hero Section */}
+      <section className="bg-gradient-to-br from-solar-blue to-blue-700 text-white py-16 mb-10 rounded-lg">
+        <div className="container px-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
+            <ScrollReveal initiallyVisible={true}>
+              <div>
+                <h1 className="text-4xl font-bold mb-4">
+                  {t("Solar Energy Education", "تعليم الطاقة الشمسية")}
+                </h1>
+                <p className="text-lg text-blue-100 mb-6">
+                  {t("Learn how solar energy works and how it can benefit your home, business, and community.", "تعرف على كيفية عمل الطاقة الشمسية وكيف يمكن أن تفيد منزلك وعملك ومجتمعك.")}
+                </p>
+                <Button size="lg" className="bg-white text-blue-700 hover:bg-blue-50" asChild>
+                  <a href="#basics">
+                    {t("Get Started", "ابدأ الآن")}
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                  </a>
+                </Button>
+              </div>
+            </ScrollReveal>
+            
+            <ScrollReveal direction="right" delay={0.2}>
+              <div className="relative">
+                <img 
+                  src="/images/solar-education-hero.jpg" 
+                  alt={t("Solar Energy Education", "تعليم الطاقة الشمسية")}
+                  className="rounded-lg shadow-lg w-full"
+                  onError={(e) => {
+                    e.target.src = 'https://placehold.co/600x400?text=Solar+Education';
+                  }}
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent rounded-lg"></div>
+              </div>
+            </ScrollReveal>
+          </div>
+        </div>
+      </section>
+      
+      <ScrollReveal>
+        <div className="text-center mb-8">
+          <h2 className="text-3xl font-bold mb-2">{t("Solar Energy for Gaza", "الطاقة الشمسية لغزة")}</h2>
+          <p className="max-w-2xl mx-auto text-lg text-muted-foreground">
+            {t("A sustainable and renewable energy source that can help meet Gaza's energy needs", "مصدر طاقة مستدام ومتجدد يمكن أن يساعد في تلبية احتياجات الطاقة في غزة")}
+          </p>
+        </div>
+      </ScrollReveal>
 
+      {/* Quick Overview Cards */}
+      <section className="mb-16">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <ScrollReveal direction="up" delay={0.1}>
+            <Card className="border bg-muted/10 hover:bg-muted/20 transition-colors">
+              <CardHeader className="flex flex-row items-center gap-4">
+                <div className="bg-primary/10 p-3 rounded-full">
+                  <Sun className="h-6 w-6 text-primary" />
+                </div>
+                <div>
+                  <CardTitle>{t("What is Solar Energy?", "ما هي الطاقة الشمسية؟")}</CardTitle>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <p className="text-muted-foreground">{t("Solar energy is the power generated from the sun's radiation. It's renewable, clean, and can be harnessed through solar panels.", "الطاقة الشمسية هي الطاقة المتولدة من إشعاع الشمس. وهي متجددة ونظيفة ويمكن تسخيرها من خلال الألواح الشمسية.")}</p>
+              </CardContent>
+            </Card>
+          </ScrollReveal>
+          
+          <ScrollReveal direction="up" delay={0.2}>
+            <Card className="border bg-muted/10 hover:bg-muted/20 transition-colors">
+              <CardHeader className="flex flex-row items-center gap-4">
+                <div className="bg-primary/10 p-3 rounded-full">
+                  <Sparkles className="h-6 w-6 text-primary" />
+                </div>
+                <div>
+                  <CardTitle>{t("Benefits", "الفوائد")}</CardTitle>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <p className="text-muted-foreground">{t("Solar energy reduces electricity bills, produces no pollution, requires minimal maintenance, and provides energy independence.", "تقلل الطاقة الشمسية من فواتير الكهرباء، ولا تنتج أي تلوث، وتتطلب الحد الأدنى من الصيانة، وتوفر استقلالية في مجال الطاقة.")}</p>
+              </CardContent>
+            </Card>
+          </ScrollReveal>
+          
+          <ScrollReveal direction="up" delay={0.3}>
+            <Card className="border bg-muted/10 hover:bg-muted/20 transition-colors">
+              <CardHeader className="flex flex-row items-center gap-4">
+                <div className="bg-primary/10 p-3 rounded-full">
+                  <Home className="h-6 w-6 text-primary" />
+                </div>
+                <div>
+                  <CardTitle>{t("Solutions for Gaza", "حلول لغزة")}</CardTitle>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <p className="text-muted-foreground">{t("Solar solutions provide reliable electricity during shortages and are sustainable energy alternatives for Gaza's unique challenges.", "توفر حلول الطاقة الشمسية كهرباء موثوقة أثناء انقطاع التيار وتعتبر بديلًا مستدامًا للطاقة للتحديات الفريدة التي تواجه غزة.")}</p>
+              </CardContent>
+            </Card>
+          </ScrollReveal>
+        </div>
+      </section>
+
+      <ScrollReveal>
+        <div id="basics" className="mb-6">
+          <h2 className="text-2xl font-bold text-center">{t("Learn About Solar Energy", "تعرف على الطاقة الشمسية")}</h2>
+        </div>
+      </ScrollReveal>
+      
       <Tabs defaultValue="basics" className="w-full mb-10">
-        <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="basics">أساسيات</TabsTrigger>
-          <TabsTrigger value="how-works">كيف تعمل</TabsTrigger>
-          <TabsTrigger value="benefits">الفوائد</TabsTrigger>
-          <TabsTrigger value="gaza">حلول لغزة</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-4 mb-6">
+          <TabsTrigger value="basics">{t("Basics", "أساسيات")}</TabsTrigger>
+          <TabsTrigger value="how-works">{t("How It Works", "كيف تعمل")}</TabsTrigger>
+          <TabsTrigger value="benefits">{t("Benefits", "الفوائد")}</TabsTrigger>
+          <TabsTrigger value="gaza">{t("Solutions for Gaza", "حلول لغزة")}</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="basics" className="mt-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>أساسيات الطاقة الشمسية</CardTitle>
-              <CardDescription>فهم المفاهيم الأساسية للطاقة الشمسية</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <h3 className="text-lg font-medium">ما هي الألواح الشمسية؟</h3>
+          <TabsContent value="basics" className="mt-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>{t("Solar Energy Basics", "أساسيات الطاقة الشمسية")}</CardTitle>
+                <CardDescription>{t("Understanding the basic concepts of solar energy", "فهم المفاهيم الأساسية للطاقة الشمسية")}</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <h3 className="text-lg font-medium">{t("What are Solar Panels?", "ما هي الألواح الشمسية؟")}</h3>
                 <p>
                   الألواح الشمسية (أو الوحدات الكهروضوئية) هي أجهزة تحول ضوء الشمس مباشرة إلى كهرباء. تتكون من خلايا شمسية مصنوعة من مواد شبه موصلة، عادة ما تكون من السليكون.
                 </p>
@@ -294,100 +395,109 @@ const SolarEducation = () => {
       </Tabs>
       
       {/* Adding a shorts/quick tips section with Arabic videos */}
-      <div className="mb-10">
-        <h2 className="text-2xl font-bold mb-6 text-center">نصائح سريعة | Quick Tips</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Maintenance video */}
-          <div className="border rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow">
-            <h3 className="p-3 bg-solar-blue text-white text-center font-medium">صيانة الألواح الشمسية | Solar Panel Maintenance</h3>
-            <AspectRatio ratio={9 / 16} className="max-h-[350px]">
-              <iframe 
-                src="https://www.youtube.com/embed/UM3vMq2G1Sk" 
-                title="صيانة الألواح الشمسية" 
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
-                allowFullScreen 
-                className="w-full h-full"
-              ></iframe>
-            </AspectRatio>
-          </div>
-          
-          {/* Energy saving tips */}
-          <div className="border rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow">
-            <h3 className="p-3 bg-solar-blue text-white text-center font-medium">توفير الطاقة | Energy Saving Tips</h3>
-            <AspectRatio ratio={9 / 16} className="max-h-[350px]">
-              <iframe 
-                src="https://www.youtube.com/embed/K8KHZ2-9Z_0" 
-                title="نصائح لتوفير الطاقة" 
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
-                allowFullScreen 
-                className="w-full h-full"
-              ></iframe>
-            </AspectRatio>
+      <ScrollReveal>
+        <div className="mb-10">
+          <h2 className="text-2xl font-bold mb-6 text-center">نصائح سريعة | Quick Tips</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Maintenance video */}
+            <ScrollReveal direction="left" delay={0.1}>
+              <div className="border rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow">
+                <h3 className="p-3 bg-solar-blue text-white text-center font-medium">صيانة الألواح الشمسية | Solar Panel Maintenance</h3>
+                <div className="h-[300px]">
+                  <iframe 
+                    src="https://www.youtube.com/embed/UM3vMq2G1Sk" 
+                    title="صيانة الألواح الشمسية" 
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                    allowFullScreen 
+                    className="w-full h-full"
+                  ></iframe>
+                </div>
+              </div>
+            </ScrollReveal>
+            
+            {/* Energy saving tips */}
+            <ScrollReveal direction="right" delay={0.2}>
+              <div className="border rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow">
+                <h3 className="p-3 bg-solar-blue text-white text-center font-medium">توفير الطاقة | Energy Saving Tips</h3>
+                <div className="h-[300px]">
+                  <iframe 
+                    src="https://www.youtube.com/embed/K8KHZ2-9Z_0" 
+                    title="نصائح لتوفير الطاقة" 
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                    allowFullScreen 
+                    className="w-full h-full"
+                  ></iframe>
+                </div>
+              </div>
+            </ScrollReveal>
           </div>
         </div>
-      </div>
+      </ScrollReveal>
 
-      <div className="mb-10">
-        <h2 className="text-2xl font-bold mb-4">أسئلة شائعة</h2>
-        <Accordion type="single" collapsible className="w-full">
-          <AccordionItem value="item-1">
-            <AccordionTrigger>كم تكلف الألواح الشمسية؟</AccordionTrigger>
-            <AccordionContent>
-              <p className="mb-2">
-                تختلف التكلفة حسب الحجم والنوع، لكن نظامًا منزليًا صغيرًا يمكن أن يكلف بين 1000-3000 دولار. رغم أن التكلفة الأولية مرتفعة، إلا أنها استثمار يوفر المال على المدى الطويل.
-              </p>
-              <p className="text-sm text-muted-foreground">
-                Costs vary depending on size and type, but a small home system can cost between $1000-3000. While the initial cost is high, it is an investment that saves money in the long run.
-              </p>
-            </AccordionContent>
-          </AccordionItem>
+      <ScrollReveal delay={0.1}>
+        <div className="mb-10">
+          <h2 className="text-2xl font-bold mb-4">أسئلة شائعة</h2>
+          <Accordion type="single" collapsible className="w-full">
+            <AccordionItem value="item-1">
+              <AccordionTrigger>كم تكلف الألواح الشمسية؟</AccordionTrigger>
+              <AccordionContent>
+                <p className="mb-2">
+                  تختلف التكلفة حسب الحجم والنوع، لكن نظامًا منزليًا صغيرًا يمكن أن يكلف بين 1000-3000 دولار. رغم أن التكلفة الأولية مرتفعة، إلا أنها استثمار يوفر المال على المدى الطويل.
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  Costs vary depending on size and type, but a small home system can cost between $1000-3000. While the initial cost is high, it is an investment that saves money in the long run.
+                </p>
+              </AccordionContent>
+            </AccordionItem>
 
-          <AccordionItem value="item-2">
-            <AccordionTrigger>هل تعمل الألواح الشمسية في الأيام الغائمة؟</AccordionTrigger>
-            <AccordionContent>
-              <p className="mb-2">
-                نعم، تعمل الألواح الشمسية حتى في الأيام الغائمة، لكن بكفاءة أقل. يمكن للبطاريات تخزين الطاقة الزائدة من الأيام المشمسة للاستخدام عند الحاجة.
-              </p>
-              <p className="text-sm text-muted-foreground">
-                Yes, solar panels work even on cloudy days, but with less efficiency. Batteries can store excess energy from sunny days for use when needed.
-              </p>
-            </AccordionContent>
-          </AccordionItem>
+            <AccordionItem value="item-2">
+              <AccordionTrigger>هل تعمل الألواح الشمسية في الأيام الغائمة؟</AccordionTrigger>
+              <AccordionContent>
+                <p className="mb-2">
+                  نعم، تعمل الألواح الشمسية حتى في الأيام الغائمة، لكن بكفاءة أقل. يمكن للبطاريات تخزين الطاقة الزائدة من الأيام المشمسة للاستخدام عند الحاجة.
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  Yes, solar panels work even on cloudy days, but with less efficiency. Batteries can store excess energy from sunny days for use when needed.
+                </p>
+              </AccordionContent>
+            </AccordionItem>
 
-          <AccordionItem value="item-3">
-            <AccordionTrigger>كم من الوقت تستغرق الألواح الشمسية حتى تسترد تكلفتها؟</AccordionTrigger>
-            <AccordionContent>
-              <p className="mb-2">
-                في غزة، حيث الكهرباء غير منتظمة ومكلفة، يمكن أن تسترد الألواح الشمسية تكلفتها في غضون 3-5 سنوات، اعتمادًا على حجم النظام واستهلاك الطاقة.
-              </p>
-              <p className="text-sm text-muted-foreground">
-                In Gaza, where electricity is irregular and expensive, solar panels can recover their cost within 3-5 years, depending on system size and energy consumption.
-              </p>
-            </AccordionContent>
-          </AccordionItem>
+            <AccordionItem value="item-3">
+              <AccordionTrigger>كم من الوقت تستغرق الألواح الشمسية حتى تسترد تكلفتها؟</AccordionTrigger>
+              <AccordionContent>
+                <p className="mb-2">
+                  في غزة، حيث الكهرباء غير منتظمة ومكلفة، يمكن أن تسترد الألواح الشمسية تكلفتها في غضون 3-5 سنوات، اعتمادًا على حجم النظام واستهلاك الطاقة.
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  In Gaza, where electricity is irregular and expensive, solar panels can recover their cost within 3-5 years, depending on system size and energy consumption.
+                </p>
+              </AccordionContent>
+            </AccordionItem>
 
-          <AccordionItem value="item-4">
-            <AccordionTrigger>كم تستمر الألواح الشمسية؟</AccordionTrigger>
-            <AccordionContent>
-              <p className="mb-2">
-                معظم الألواح الشمسية عالية الجودة لديها ضمان لمدة 25 عامًا ويمكن أن تستمر في العمل لأكثر من 30 عامًا، مع انخفاض تدريجي في الكفاءة مع مرور الوقت.
-              </p>
-              <p className="text-sm text-muted-foreground">
-                Most high-quality solar panels have a 25-year warranty and can continue to function for over 30 years, with a gradual decrease in efficiency over time.
-              </p>
-            </AccordionContent>
-          </AccordionItem>
-        </Accordion>
-      </div>
+            <AccordionItem value="item-4">
+              <AccordionTrigger>كم تستمر الألواح الشمسية؟</AccordionTrigger>
+              <AccordionContent>
+                <p className="mb-2">
+                  معظم الألواح الشمسية عالية الجودة لديها ضمان لمدة 25 عامًا ويمكن أن تستمر في العمل لأكثر من 30 عامًا، مع انخفاض تدريجي في الكفاءة مع مرور الوقت.
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  Most high-quality solar panels have a 25-year warranty and can continue to function for over 30 years, with a gradual decrease in efficiency over time.
+                </p>
+              </AccordionContent>
+            </AccordionItem>
+          </Accordion>
+        </div>
+      </ScrollReveal>
 
-      <Card className="mb-10">
-        <CardHeader>
-          <CardTitle>طلب المزيد من المعلومات</CardTitle>
-          <CardDescription>املأ النموذج أدناه وسنتواصل معك</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+      <ScrollReveal direction="up" delay={0.2}>
+        <Card className="mb-10">
+          <CardHeader>
+            <CardTitle>طلب المزيد من المعلومات</CardTitle>
+            <CardDescription>املأ النموذج أدناه وسنتواصل معك</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
               <FormField
                 control={form.control}
                 name="name"
@@ -459,6 +569,7 @@ const SolarEducation = () => {
           </Form>
         </CardContent>
       </Card>
+      </ScrollReveal>
     </div>
   );
 };

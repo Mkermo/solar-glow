@@ -4,6 +4,7 @@ import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Sun, ArrowRight, Truck, Package, Check } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
+import ScrollReveal from "@/components/ScrollReveal";
 
 // Define the Product interface
 interface Product {
@@ -91,7 +92,7 @@ const Index = () => {
     );
   }
 
-  // Check if we have products before rendering
+  // Check if we have products before rendering full page
   if (!products.length) {
     return (
       <div className="min-h-screen">
@@ -131,156 +132,298 @@ const Index = () => {
       {/* Hero Section */}
       <section className="bg-gradient-to-br from-solar-blue to-blue-700 text-white">
         <div className="container py-20 md:py-32 flex flex-col items-center text-center">
-          <h1 className="text-4xl md:text-6xl font-bold mb-6">
-            {t("Power Your Home with Solar Energy", "زوّد منزلك بالطاقة الشمسية")}
-          </h1>
-          <p className="text-lg md:text-xl max-w-2xl mb-8 text-blue-100">
-            {t("High-quality solar panels and inverters for sustainable energy solutions.", "ألواح شمسية ومحولات عالية الجودة لحلول الطاقة المستدامة.")}
-          </p>
-          <div className="flex flex-col sm:flex-row gap-4">
-            <Button asChild size="lg" className="bg-accent hover:bg-accent/90">
-              <Link to="/products/panels">
-                {t("Shop Solar Panels", "تسوق الألواح الشمسية")}
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </Link>
-            </Button>
-            <Button asChild size="lg" variant="outline" className="bg-white/10 hover:bg-white/20 border-white/20">
-              <Link to="/products/inverters">
-                {t("Browse Inverters", "تصفح المحولات")}
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </Link>
-            </Button>
-          </div>
+          <ScrollReveal initiallyVisible={true}>
+            <h1 className="text-4xl md:text-6xl font-bold mb-6">
+              {t("Power Your Home with Solar Energy", "زوّد منزلك بالطاقة الشمسية")}
+            </h1>
+          </ScrollReveal>
+          
+          <ScrollReveal delay={0.1}>
+            <p className="text-lg md:text-xl max-w-2xl mb-8 text-blue-100">
+              {t("High-quality solar panels and inverters for sustainable energy solutions.", "ألواح شمسية ومحولات عالية الجودة لحلول الطاقة المستدامة.")}
+            </p>
+          </ScrollReveal>
+          
+          <ScrollReveal delay={0.2}>
+            <div className="flex flex-wrap gap-4 justify-center">
+              <Button size="lg" asChild className="bg-accent hover:bg-accent/90">
+                <Link to="/products/panels">
+                  {t("Shop Solar Panels", "تسوّق الألواح الشمسية")}
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Link>
+              </Button>
+              <Button size="lg" variant="outline" className="bg-white/10 hover:bg-white/20 border-white/20" asChild>
+                <Link to="/contact">
+                  {t("Get a Quote", "احصل على عرض سعر")}
+                </Link>
+              </Button>
+            </div>
+          </ScrollReveal>
         </div>
       </section>
 
       {/* Features Section */}
-      <section className="py-16">
+      <section className="py-16 bg-white">
         <div className="container">
-          <h2 className="text-3xl font-bold text-center mb-12">{t("Why Choose SolarG", "لماذا تختار SolarG")}</h2>
+          <ScrollReveal>
+            <h2 className="text-3xl font-bold text-center mb-12">{t("Our Features", "مميزاتنا")}</h2>
+          </ScrollReveal>
+          
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <div className="flex flex-col items-center text-center">
-              <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center mb-4">
-                <Sun className="h-8 w-8 text-primary" />
+            <ScrollReveal direction="up" delay={0.1}>
+              <div className="border rounded-lg p-6 h-full flex flex-col items-center text-center">
+                <div className="bg-primary/10 p-4 rounded-full mb-4">
+                  <Sun className="h-8 w-8 text-primary" />
+                </div>
+                <h3 className="text-xl font-semibold mb-2">{t("High Efficiency", "كفاءة عالية")}</h3>
+                <p className="text-muted-foreground">
+                  {t("Our premium panels deliver industry-leading efficiency rates for maximum energy production.", "تقدم ألواحنا المتميزة معدلات كفاءة رائدة في الصناعة لأقصى إنتاج للطاقة.")}
+                </p>
               </div>
-              <h3 className="text-xl font-semibold mb-2">{t("High Efficiency", "كفاءة عالية")}</h3>
-              <p className="text-muted-foreground">
-                {t("Our premium panels deliver industry-leading efficiency rates for maximum energy production.", "تقدم ألواحنا المتميزة معدلات كفاءة رائدة في الصناعة لأقصى إنتاج للطاقة.")}
-              </p>
-            </div>
-            <div className="flex flex-col items-center text-center">
-              <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center mb-4">
-                <Truck className="h-8 w-8 text-primary" />
+            </ScrollReveal>
+            
+            <ScrollReveal direction="up" delay={0.2}>
+              <div className="border rounded-lg p-6 h-full flex flex-col items-center text-center">
+                <div className="bg-primary/10 p-4 rounded-full mb-4">
+                  <Truck className="h-8 w-8 text-primary" />
+                </div>
+                <h3 className="text-xl font-semibold mb-2">{t("Fast Delivery", "توصيل سريع")}</h3>
+                <p className="text-muted-foreground">
+                  {t("Quick and reliable shipping to your doorstep with professional handling.", "شحن سريع وموثوق به إلى باب منزلك مع تعامل احترافي.")}
+                </p>
               </div>
-              <h3 className="text-xl font-semibold mb-2">{t("Fast Shipping", "شحن سريع")}</h3>
-              <p className="text-muted-foreground">
-                {t("Quick delivery and careful packaging ensure your equipment arrives safely and on time.", "التسليم السريع والتغليف الدقيق يضمنان وصول معداتك بأمان وفي الوقت المحدد.")}
-              </p>
-            </div>
-            <div className="flex flex-col items-center text-center">
-              <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center mb-4">
-                <Check className="h-8 w-8 text-primary" />
+            </ScrollReveal>
+            
+            <ScrollReveal direction="up" delay={0.3}>
+              <div className="border rounded-lg p-6 h-full flex flex-col items-center text-center">
+                <div className="bg-primary/10 p-4 rounded-full mb-4">
+                  <Check className="h-8 w-8 text-primary" />
+                </div>
+                <h3 className="text-xl font-semibold mb-2">{t("Warranty", "ضمان")}</h3>
+                <p className="text-muted-foreground">
+                  {t("All products come with extended warranty and dedicated customer support.", "تأتي جميع المنتجات مع ضمان ممتد ودعم مخصص للعملاء.")}
+                </p>
               </div>
-              <h3 className="text-xl font-semibold mb-2">{t("Expert Support", "دعم متخصص")}</h3>
-              <p className="text-muted-foreground">
-                {t("Our team of solar specialists is available to help with product selection and technical questions.", "فريق المتخصصين لدينا متاح للمساعدة في اختيار المنتجات والإجابة على الأسئلة التقنية.")}
-              </p>
-            </div>
+            </ScrollReveal>
+          </div>
+        </div>
+      </section>
+
+      {/* Why Choose Us Section */}
+      <section className="py-16 bg-muted">
+        <div className="container">
+          <ScrollReveal>
+            <h2 className="text-3xl font-bold text-center mb-12">{t("Why Choose SolarG", "لماذا تختار SolarG")}</h2>
+          </ScrollReveal>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
+            <ScrollReveal direction="left">
+              <img 
+                src="/images/solar-home.jpg" 
+                alt={t("Solar powered home", "منزل يعمل بالطاقة الشمسية")} 
+                className="rounded-lg shadow-lg w-full"
+                onError={(e) => {
+                  e.target.src = 'https://placehold.co/600x400?text=Solar+Home';
+                }}
+              />
+            </ScrollReveal>
+            
+            <ScrollReveal direction="right">
+              <div className="space-y-6">
+                <div className="flex gap-4 items-start">
+                  <div className="bg-primary/10 p-3 rounded-full">
+                    <Check className="h-6 w-6 text-primary" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold mb-1">{t("Expert Consultation", "استشارة خبيرة")}</h3>
+                    <p className="text-muted-foreground">
+                      {t("Our team provides personalized advice for your specific energy needs.", "يقدم فريقنا نصائح مخصصة لاحتياجات الطاقة الخاصة بك.")}
+                    </p>
+                  </div>
+                </div>
+                
+                <div className="flex gap-4 items-start">
+                  <div className="bg-primary/10 p-3 rounded-full">
+                    <Check className="h-6 w-6 text-primary" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold mb-1">{t("Quality Products", "منتجات عالية الجودة")}</h3>
+                    <p className="text-muted-foreground">
+                      {t("We only source from reputable manufacturers with proven track records.", "نحن نستورد فقط من مصنعين ذوي سمعة طيبة مع سجلات حافلة.")}
+                    </p>
+                  </div>
+                </div>
+                
+                <div className="flex gap-4 items-start">
+                  <div className="bg-primary/10 p-3 rounded-full">
+                    <Check className="h-6 w-6 text-primary" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold mb-1">{t("After-Sales Support", "دعم ما بعد البيع")}</h3>
+                    <p className="text-muted-foreground">
+                      {t("Dedicated support team to assist you with any questions or concerns.", "فريق دعم مخصص لمساعدتك في أي أسئلة أو مخاوف.")}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </ScrollReveal>
           </div>
         </div>
       </section>
 
       {/* Featured Products Section */}
-      <section className="py-16 bg-gray-50">
+      <section className="py-16 bg-white">
         <div className="container">
-          <h2 className="text-3xl font-bold mb-12">{t("Featured Products", "المنتجات المميزة")}</h2>
+          <ScrollReveal>
+            <div className="flex justify-between items-center mb-8">
+              <h2 className="text-3xl font-bold">{t("Featured Products", "المنتجات المميزة")}</h2>
+              <Button variant="outline" asChild>
+                <Link to="/products/all">
+                  {t("View All", "عرض الكل")}
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Link>
+              </Button>
+            </div>
+          </ScrollReveal>
+
+          {/* Solar Panels */}
+          <ScrollReveal>
+            <h3 className="text-xl font-semibold mb-4">{t("Solar Panels", "الألواح الشمسية")}</h3>
+          </ScrollReveal>
           
-          <div className="mb-10">
-            <div className="flex justify-between items-center mb-6">
-              <h3 className="text-2xl font-semibold">{t("Solar Panels", "ألواح شمسية")}</h3>
-              <Link to="/products/panels" className="text-primary flex items-center hover:underline">
-                {t("View all", "عرض الكل")}
-                <ArrowRight className="ml-1 h-4 w-4" />
-              </Link>
-            </div>
-            
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-              {featuredPanels.map((panel) => (
-                <div key={panel.id} className="bg-white rounded-lg shadow-md overflow-hidden">
-                  <div className="aspect-square bg-gray-100 relative">
-                    <img
-                      src={panel.image}
-                      alt={t(panel.name, getArabicProductName(panel.name))}
-                      className="object-cover w-full h-full p-6"
-                    />
-                  </div>
-                  <div className="p-6">
-                    <h4 className="text-lg font-semibold mb-2">{t(panel.name, getArabicProductName(panel.name))}</h4>
-                    <p className="text-gray-500 text-sm mb-4 line-clamp-2">
-                      {t(panel.description, getArabicProductDescription(panel.description))}
-                    </p>
-                    <div className="flex justify-between items-center">
-                      <span className="text-lg font-bold">${panel.price.toFixed(2)}</span>
-                      <Button asChild>
-                        <Link to={`/product/${panel.id}`}>{t("View Details", "عرض التفاصيل")}</Link>
-                      </Button>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-6 mb-8">
+            {featuredPanels.length > 0 ? (
+              featuredPanels.map((product, index) => (
+                <ScrollReveal key={product.id} delay={index * 0.1}>
+                  <Link to={`/product/${product.id}`} className="block border rounded-lg overflow-hidden hover:border-primary transition-colors">
+                    <div className="aspect-video bg-muted/20">
+                      <img
+                        src={product.image_url}
+                        alt={product.name}
+                        className="w-full h-full object-contain"
+                        onError={(e) => {
+                          e.target.src = 'https://placehold.co/600x400?text=Solar+Panel';
+                        }}
+                      />
                     </div>
-                  </div>
-                </div>
-              ))}
-            </div>
+                    <div className="p-4">
+                      <h4 className="font-semibold mb-2">{product.name}</h4>
+                      <p className="text-muted-foreground line-clamp-2 mb-2">{product.description}</p>
+                      <div className="flex justify-between items-center">
+                        <span className="font-bold">${product.price.toFixed(2)}</span>
+                        <Button size="sm">
+                          {t("View Details", "عرض التفاصيل")}
+                        </Button>
+                      </div>
+                    </div>
+                  </Link>
+                </ScrollReveal>
+              ))
+            ) : (
+              <p>{t("No solar panels available", "لا توجد ألواح شمسية متاحة")}</p>
+            )}
           </div>
           
-          <div>
-            <div className="flex justify-between items-center mb-6">
-              <h3 className="text-2xl font-semibold">{t("Inverters", "المحولات")}</h3>
-              <Link to="/products/inverters" className="text-primary flex items-center hover:underline">
-                {t("View all", "عرض الكل")}
-                <ArrowRight className="ml-1 h-4 w-4" />
-              </Link>
-            </div>
-            
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-              {featuredInverters.map((inverter) => (
-                <div key={inverter.id} className="bg-white rounded-lg shadow-md overflow-hidden">
-                  <div className="aspect-square bg-gray-100 relative">
-                    <img
-                      src={inverter.image}
-                      alt={t(inverter.name, getArabicProductName(inverter.name))}
-                      className="object-cover w-full h-full p-6"
-                    />
-                  </div>
-                  <div className="p-6">
-                    <h4 className="text-lg font-semibold mb-2">{t(inverter.name, getArabicProductName(inverter.name))}</h4>
-                    <p className="text-gray-500 text-sm mb-4 line-clamp-2">
-                      {t(inverter.description, getArabicProductDescription(inverter.description))}
-                    </p>
-                    <div className="flex justify-between items-center">
-                      <span className="text-lg font-bold">${inverter.price.toFixed(2)}</span>
-                      <Button asChild>
-                        <Link to={`/product/${inverter.id}`}>{t("View Details", "عرض التفاصيل")}</Link>
-                      </Button>
+          {/* Inverters */}
+          <ScrollReveal>
+            <h3 className="text-xl font-semibold mb-4">{t("Inverters", "العاكسات")}</h3>
+          </ScrollReveal>
+          
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-6">
+            {featuredInverters.length > 0 ? (
+              featuredInverters.map((product, index) => (
+                <ScrollReveal key={product.id} delay={index * 0.1}>
+                  <Link to={`/product/${product.id}`} className="block border rounded-lg overflow-hidden hover:border-primary transition-colors">
+                    <div className="aspect-video bg-muted/20">
+                      <img
+                        src={product.image_url}
+                        alt={product.name}
+                        className="w-full h-full object-contain"
+                        onError={(e) => {
+                          e.target.src = 'https://placehold.co/600x400?text=Inverter';
+                        }}
+                      />
                     </div>
-                  </div>
-                </div>
-              ))}
-            </div>
+                    <div className="p-4">
+                      <h4 className="font-semibold mb-2">{product.name}</h4>
+                      <p className="text-muted-foreground line-clamp-2 mb-2">{product.description}</p>
+                      <div className="flex justify-between items-center">
+                        <span className="font-bold">${product.price.toFixed(2)}</span>
+                        <Button size="sm">
+                          {t("View Details", "عرض التفاصيل")}
+                        </Button>
+                      </div>
+                    </div>
+                  </Link>
+                </ScrollReveal>
+              ))
+            ) : (
+              <p>{t("No inverters available", "لا توجد عاكسات متاحة")}</p>
+            )}
           </div>
         </div>
       </section>
 
-      {/* CTA Section */}
-      <section className="py-20 bg-accent text-white">
+      {/* Call to Action */}
+      <section className="py-16 bg-gradient-to-br from-solar-blue to-blue-700 text-white">
         <div className="container text-center">
-          <h2 className="text-3xl md:text-4xl font-bold mb-4">
-            {t("Ready to Switch to Solar?", "هل أنت جاهز للتحول إلى الطاقة الشمسية؟")}
-          </h2>
-          <p className="text-lg max-w-2xl mx-auto mb-8">
-            {t("Start your journey towards sustainable energy and reduced electricity bills today.", "ابدأ رحلتك نحو الطاقة المستدامة وفواتير كهرباء منخفضة اليوم.")}
-          </p>
-          <Button asChild size="lg" className="bg-white text-accent hover:bg-white/90">
-            <Link to="/products/panels">{t("Shop Now", "تسوق الآن")}</Link>
-          </Button>
+          <ScrollReveal>
+            <h2 className="text-3xl font-bold mb-4">
+              {t("Ready to Switch to Solar?", "هل أنت مستعد للتحول إلى الطاقة الشمسية؟")}
+            </h2>
+          </ScrollReveal>
+          
+          <ScrollReveal delay={0.1}>
+            <p className="text-xl max-w-2xl mx-auto mb-8 text-blue-100">
+              {t("Start your journey to energy independence with our premium solar products.", "ابدأ رحلتك نحو استقلال الطاقة مع منتجاتنا الشمسية المتميزة.")}
+            </p>
+          </ScrollReveal>
+          
+          <ScrollReveal delay={0.2}>
+            <Button size="lg" className="bg-white text-solar-blue hover:bg-blue-50" asChild>
+              <Link to="/products/panels">
+                {t("Shop Now", "تسوق الآن")}
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Link>
+            </Button>
+          </ScrollReveal>
+        </div>
+      </section>
+
+      {/* Footer info banner */}
+      <section className="py-8 bg-muted/50">
+        <div className="container">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <ScrollReveal direction="up" delay={0.1}>
+              <div className="flex items-center gap-3">
+                <Truck className="h-10 w-10 text-primary" />
+                <div>
+                  <h3 className="font-semibold">{t("Free Shipping", "شحن مجاني")}</h3>
+                  <p className="text-sm text-muted-foreground">{t("On orders over $1000", "على الطلبات التي تزيد عن 1000 دولار")}</p>
+                </div>
+              </div>
+            </ScrollReveal>
+            
+            <ScrollReveal direction="up" delay={0.2}>
+              <div className="flex items-center gap-3">
+                <Package className="h-10 w-10 text-primary" />
+                <div>
+                  <h3 className="font-semibold">{t("Secure Packaging", "تغليف آمن")}</h3>
+                  <p className="text-sm text-muted-foreground">{t("Safe delivery guaranteed", "ضمان التسليم الآمن")}</p>
+                </div>
+              </div>
+            </ScrollReveal>
+            
+            <ScrollReveal direction="up" delay={0.3}>
+              <div className="flex items-center gap-3">
+                <Check className="h-10 w-10 text-primary" />
+                <div>
+                  <h3 className="font-semibold">{t("Warranty", "ضمان")}</h3>
+                  <p className="text-sm text-muted-foreground">{t("5-year product warranty", "ضمان المنتج لمدة 5 سنوات")}</p>
+                </div>
+              </div>
+            </ScrollReveal>
+          </div>
         </div>
       </section>
     </div>
@@ -288,9 +431,9 @@ const Index = () => {
 };
 
 // Helper functions for Arabic translations of product names and descriptions
-const getArabicProductName = (englishName: string): string => {
+const getArabicProductName = (englishName) => {
   // Map of product names to their Arabic translations
-  const nameTranslations: Record<string, string> = {
+  const nameTranslations = {
     "SolarG Premium 400W Solar Panel": "لوح شمسي SolarG بريميوم 400 واط",
     "SolarG Elite 500W Solar Panel": "لوح شمسي SolarG إيليت 500 واط",
     "SolarG Home 5kW Inverter": "محول SolarG منزلي 5 كيلوواط",
@@ -300,9 +443,9 @@ const getArabicProductName = (englishName: string): string => {
   return nameTranslations[englishName] || `${englishName} (بالعربية)`;
 };
 
-const getArabicProductDescription = (englishDescription: string): string => {
+const getArabicProductDescription = (englishDescription) => {
   // Map of product descriptions to their Arabic translations
-  const descriptionTranslations: Record<string, string> = {
+  const descriptionTranslations = {
     "High-efficiency monocrystalline solar panel with advanced cell technology for maximum power output even in low-light conditions. Perfect for residential installations.": 
       "لوح شمسي أحادي البلورية عالي الكفاءة مع تقنية خلايا متقدمة لأقصى إنتاج للطاقة حتى في ظروف الإضاءة المنخفضة. مثالي للتركيبات السكنية.",
     "Our highest-power residential solar panel featuring next-generation cell architecture for superior performance in all weather conditions. Ideal for maximizing energy production in limited roof space.": 
