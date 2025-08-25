@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useParams } from "react-router-dom";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -7,37 +7,126 @@ import { Slider } from "@/components/ui/slider";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Search, Sun, Package, Battery } from "lucide-react";
-import { getProductsByCategory } from "@/data/products";
+import { supabase } from "@/lib/supabase";
 import { Product } from "@/contexts/CartContext";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { useToast } from "@/components/ui/use-toast";
 
 const ProductListing = () => {
   const { lang } = useLanguage();
+  const { toast } = useToast();
   const { category } = useParams<{ category: string }>();
   const [products, setProducts] = useState<Product[]>([]);
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [priceRange, setPriceRange] = useState([0, 10000]);
   const [sortOption, setSortOption] = useState("popularity");
+  const [loading, setLoading] = useState(true);
   
   const [selectedPanelTypes, setSelectedPanelTypes] = useState<string[]>([]);
   const [selectedInverterTypes, setSelectedInverterTypes] = useState<string[]>([]);
   const [selectedBatteryTypes, setSelectedBatteryTypes] = useState<string[]>([]);
 
+  // Track if component is mounted to prevent state updates after unmount
+  const isMounted = React.useRef(true);
+  
+  // Define a memoized key for data caching
+  const cacheKey = React.useMemo(() => `products_${category || 'all'}`, [category]);
+  
+  // Store cached data across renders
+  const [cachedData, setCachedData] = useState<Record<string, Product[]>>({});
+  
   useEffect(() => {
-    if (category) {
-      const categoryProducts = getProductsByCategory(category);
-      setProducts(categoryProducts);
-      setFilteredProducts(categoryProducts);
-      
-      setSearchQuery("");
-      setPriceRange([0, 10000]);
-      setSortOption("popularity");
-      setSelectedPanelTypes([]);
-      setSelectedInverterTypes([]);
-      setSelectedBatteryTypes([]);
-    }
-  }, [category]);
+    // Set isMounted to false when component unmounts
+    return () => {
+      isMounted.current = false;
+    };
+  }, []);
+  
+  useEffect(() => {
+    const fetchProducts = async () => {
+      try {
+        // If we have cached data for this category, use it first
+        if (cachedData[cacheKey]) {
+          console.log("Using cached products data for:", category);
+          setProducts(cachedData[cacheKey]);
+          setFilteredProducts(cachedData[cacheKey]);
+          
+          // Start loading fresh data in the background
+          setLoading(false);
+        } else {
+          setLoading(true);
+        }
+        
+        console.log("Fetching products for category:", category);
+        
+        // Only select fields we need for the listing to reduce payload size
+        let query = supabase
+          .from("products")
+          .select("id, name, name_ar, price, image_url, category, description, description_ar")
+          .order('name', { ascending: true });
+
+        if (category && category !== "all") {
+          query = query.eq("category", category);
+        }
+
+        const { data, error } = await query;
+
+        if (error) {
+          console.error("Supabase error:", error);
+          if (isMounted.current) {
+            toast({
+              variant: "destructive",
+              title: "Error",
+              description: `Failed to load products: ${error.message}`
+            });
+          }
+          throw error;
+        }
+        
+        // Only update state if the component is still mounted
+        if (isMounted.current) {
+          console.log(`Fetched ${data?.length || 0} products for category:`, category);
+          
+          if (data && data.length > 0) {
+            // Update the cache
+            setCachedData(prev => ({
+              ...prev,
+              [cacheKey]: data
+            }));
+            
+            setProducts(data);
+            setFilteredProducts(data);
+            
+            // Reset filters
+            setSearchQuery("");
+            const maxPrice = Math.ceil(Math.max(...data.map(p => p.price || 0)));
+            setPriceRange([0, maxPrice > 0 ? maxPrice : 10000]);
+            setSortOption("popularity");
+            setSelectedPanelTypes([]);
+            setSelectedInverterTypes([]);
+            setSelectedBatteryTypes([]);
+          } else {
+            setProducts([]);
+            setFilteredProducts([]);
+            toast({
+              title: "No products found",
+              description: "No products available in this category."
+            });
+          }
+          
+          setLoading(false);
+        }
+      } catch (err) {
+        console.error("Error fetching products:", err);
+        if (isMounted.current) {
+          setLoading(false);
+        }
+      }
+    };
+
+    fetchProducts();
+  }, [category, toast, cacheKey, cachedData]);
 
   useEffect(() => {
     let result = [...products];
@@ -157,6 +246,8 @@ const ProductListing = () => {
         <span className="text-muted-foreground">/</span>
         <span>{getCategoryTitle()}</span>
       </div>
+      
+      {/* Loading state moved into the product grid section */}
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
         <div className="space-y-6">
@@ -326,7 +417,12 @@ const ProductListing = () => {
             </div>
           </div>
 
-          {filteredProducts.length === 0 ? (
+          {loading ? (
+            <div className="text-center py-20 col-span-full">
+              <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full mx-auto" />
+              <p className="mt-4">{lang === "ar" ? "جاري تحميل المنتجات..." : "Loading products..."}</p>
+            </div>
+          ) : filteredProducts.length === 0 ? (
             <div className="text-center py-20">
               <h3 className="text-xl font-semibold mb-2">
                 {lang === "ar" ? "لم يتم العثور على منتجات" : "No products found"}
@@ -349,9 +445,13 @@ const ProductListing = () => {
                 <div key={product.id} className="bg-white rounded-lg shadow-md overflow-hidden">
                   <div className="aspect-square bg-gray-100 relative">
                     <img
-                      src={product.image}
+                      src={product.image_url || '/placeholder.svg'}
                       alt={product.name}
                       className="object-cover w-full h-full p-6"
+                      onError={(e) => {
+                        const target = e.target as HTMLImageElement;
+                        target.src = '/placeholder.svg';
+                      }}
                     />
                   </div>
                   <div className="p-6">

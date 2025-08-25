@@ -2,24 +2,89 @@ import { useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
-import { Loader2 } from "lucide-react";
+import { Loader2, Link, Upload } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface ProductImageUploadProps {
   productId: string;
   currentImageUrl: string | null;
   onImageUpdate: (newUrl: string) => void;
+  showChangeButton?: boolean;
 }
 
-export function ProductImageUpload({ productId, currentImageUrl, onImageUpdate }: ProductImageUploadProps) {
+export function ProductImageUpload({ 
+  productId, 
+  currentImageUrl, 
+  onImageUpdate,
+  showChangeButton = true 
+}: ProductImageUploadProps) {
   const [uploading, setUploading] = useState(false);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [imageUrl, setImageUrl] = useState('');
   const { toast } = useToast();
-
+  
+  // Create a unique ID for each input to avoid conflicts
+  const inputId = `imageUpload-${productId}`;
+  
+  // Handle direct file upload
+  // Handle image upload from file input
   const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    try {
-      const file = event.target.files?.[0];
-      if (!file) return;
+    console.log("Image upload triggered");
+    const file = event.target.files?.[0];
+    if (!file) {
+      console.log("No file selected");
+      return;
+    }
+    await handleFileUpload(file);
+  };
 
+  // Handle direct URL input submission
+  const handleUrlSubmit = () => {
+    if (!imageUrl) {
+      toast({
+        title: "URL Required",
+        description: "Please enter a valid image URL",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      // Validate URL
+      new URL(imageUrl);
+      
+      // Update with the provided URL
+      onImageUpdate(imageUrl);
+      setDialogOpen(false);
+      setImageUrl('');
+      
+      toast({
+        title: "Image updated",
+        description: "The product image was updated successfully with the provided URL."
+      });
+    } catch (error) {
+      toast({
+        title: "Invalid URL",
+        description: "Please enter a valid image URL",
+        variant: "destructive"
+      });
+    }
+  };
+  
+  const handleFileUpload = async (file: File) => {
+    try {
       setUploading(true);
+      console.log("Starting upload for file:", file.name);
 
       // Validate file
       if (!file.type.startsWith('image/')) {
@@ -33,10 +98,23 @@ export function ProductImageUpload({ productId, currentImageUrl, onImageUpdate }
       // Create unique filename
       const fileExt = file.name.split('.').pop();
       const fileName = `${productId}-${Date.now()}.${fileExt}`;
+      console.log("File will be uploaded as:", fileName);
+      
+      // First check if the bucket exists, create if needed
+      const { data: bucketData, error: bucketError } = await supabase.storage
+        .getBucket('products');
+        
+      if (bucketError && bucketError.message.includes('not found')) {
+        console.log("Creating products bucket");
+        await supabase.storage.createBucket('products', {
+          public: true
+        });
+      }
 
       // Upload to Supabase Storage
+      console.log("Uploading to Supabase...");
       const { error: uploadError, data } = await supabase.storage
-        .from('product-images')
+        .from('products')
         .upload(fileName, file, {
           cacheControl: '3600',
           upsert: true
@@ -44,15 +122,20 @@ export function ProductImageUpload({ productId, currentImageUrl, onImageUpdate }
 
       if (uploadError) {
         console.error('Upload error:', uploadError);
-        throw new Error('Failed to upload image');
+        throw new Error(`Failed to upload image: ${uploadError.message}`);
       }
+      
+      console.log("Upload successful:", data);
 
       // Get public URL
       const { data: { publicUrl } } = supabase.storage
-        .from('product-images')
+        .from('products')
         .getPublicUrl(fileName);
+      
+      console.log("Public URL generated:", publicUrl);
 
       // Update product record
+      console.log("Updating product record with new image URL");
       const { error: updateError } = await supabase
         .from('products')
         .update({ image_url: publicUrl })
@@ -60,15 +143,20 @@ export function ProductImageUpload({ productId, currentImageUrl, onImageUpdate }
 
       if (updateError) {
         console.error('Update error:', updateError);
-        throw new Error('Failed to update product image');
+        throw new Error(`Failed to update product image: ${updateError.message}`);
       }
 
+      console.log("Product updated successfully");
       onImageUpdate(publicUrl);
       
       toast({
         title: "Success",
         description: "Product image updated successfully"
       });
+      
+      // Reset the file input so it can be selected again
+      const fileInput = document.getElementById(inputId) as HTMLInputElement;
+      if (fileInput) fileInput.value = '';
 
     } catch (error) {
       console.error('Error:', error);
@@ -86,38 +174,126 @@ export function ProductImageUpload({ productId, currentImageUrl, onImageUpdate }
     <div className="flex items-center gap-4">
       <div className="w-32 h-32 border rounded-lg overflow-hidden bg-gray-50">
         <img 
-          src={currentImageUrl || '/placeholder-product.png'} 
+          src={currentImageUrl || '/placeholder.svg'} 
           alt="Product" 
           className="w-full h-full object-cover"
+          onError={(e) => {
+            const target = e.target as HTMLImageElement;
+            target.src = '/placeholder.svg';
+          }}
         />
       </div>
-      <div>
-        <input
-          type="file"
-          id="imageUpload"
-          className="hidden"
-          accept="image/*"
-          onChange={handleImageUpload}
-          disabled={uploading}
-        />
-        <label htmlFor="imageUpload">
-          <Button 
-            type="button"
-            variant="outline" 
-            disabled={uploading}
-            className="cursor-pointer"
-          >
-            {uploading ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Uploading...
-              </>
-            ) : (
-              'Change Photo'
-            )}
-          </Button>
-        </label>
-      </div>
+      {showChangeButton && (
+        <div className="space-y-2">
+          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+            <DialogTrigger asChild>
+              <Button 
+                type="button" 
+                variant="outline" 
+                disabled={uploading} 
+                className="w-full"
+              >
+                {uploading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Uploading...
+                  </>
+                ) : (
+                  <>Update Image</>
+                )}
+              </Button>
+            </DialogTrigger>
+            
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Update Product Image</DialogTitle>
+                <DialogDescription>
+                  Choose how you want to update the product image.
+                </DialogDescription>
+              </DialogHeader>
+              
+              <Tabs defaultValue="upload" className="w-full">
+                <TabsList className="grid grid-cols-2 mb-4">
+                  <TabsTrigger value="upload">Upload File</TabsTrigger>
+                  <TabsTrigger value="url">Enter URL</TabsTrigger>
+                </TabsList>
+                
+                <TabsContent value="upload" className="space-y-4">
+                  <div className="flex flex-col items-center justify-center border-2 border-dashed rounded-lg p-6 space-y-2">
+                    <Upload className="h-10 w-10 text-gray-400" />
+                    <p className="text-sm text-gray-500">Upload an image file</p>
+                    <input
+                      type="file"
+                      id={inputId}
+                      name={inputId}
+                      className="hidden"
+                      accept="image/*"
+                      onChange={handleImageUpload}
+                      disabled={uploading}
+                    />
+                    <label htmlFor={inputId}>
+                      <Button 
+                        type="button"
+                        variant="secondary" 
+                        disabled={uploading}
+                        className="cursor-pointer"
+                      >
+                        Browse Files
+                      </Button>
+                    </label>
+                  </div>
+                </TabsContent>
+                
+                <TabsContent value="url" className="space-y-4">
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <label htmlFor="imageUrl" className="text-sm font-medium">
+                        Image URL
+                      </label>
+                      <Input
+                        id="imageUrl"
+                        placeholder="https://example.com/image.jpg"
+                        value={imageUrl}
+                        onChange={(e) => setImageUrl(e.target.value)}
+                      />
+                      <p className="text-xs text-gray-500">
+                        Enter the direct URL to an image file
+                      </p>
+                    </div>
+                  </div>
+                  <Button onClick={handleUrlSubmit} className="w-full">
+                    Use this URL
+                  </Button>
+                </TabsContent>
+              </Tabs>
+            </DialogContent>
+          </Dialog>
+          
+          {/* Keep the original file input for compatibility */}
+          <div className="hidden">
+            <input
+              type="file"
+              id={`direct-${inputId}`}
+              name={`direct-${inputId}`}
+              className="hidden"
+              accept="image/*"
+              onChange={handleImageUpload}
+              disabled={uploading}
+            />
+            <label htmlFor={`direct-${inputId}`}>
+              <Button 
+                type="button"
+                variant="outline" 
+                size="sm"
+                disabled={uploading}
+                className="cursor-pointer w-full"
+              >
+                Upload File Directly
+              </Button>
+            </label>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

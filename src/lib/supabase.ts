@@ -1,10 +1,14 @@
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+// Try to get from environment variables first
+let supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+let supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
+// If environment variables are not available, use hardcoded values
 if (!supabaseUrl || !supabaseKey) {
-  throw new Error('Missing Supabase credentials in environment variables');
+  console.warn('Using fallback Supabase credentials. Environment variables not loaded properly.');
+  supabaseUrl = "https://ketesbnrumxbvwuaqefa.supabase.co";
+  supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtldGVzYm5ydW14YnZ3dWFxZWZhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY5NDg1ODcsImV4cCI6MjA2MjUyNDU4N30._E9BrV3rNrzz-cDvbUoyUkbcuhW-95rDANA2nnheEFc";
 }
 
 // Create a single instance of the Supabase client

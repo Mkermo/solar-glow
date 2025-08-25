@@ -132,7 +132,7 @@ const Navbar = () => {
               <span className="sr-only">Toggle language</span>
               <Globe className="h-4 w-4" />
               <span className="absolute -bottom-1 -right-1 h-4 w-4 bg-primary rounded-full flex items-center justify-center text-[8px] font-bold text-white">
-                {lang === "en" ? "ع" : "E"}
+                {lang === "en" ? "A" : "E"}
               </span>
             </Button>
           </div>

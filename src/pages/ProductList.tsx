@@ -9,6 +9,7 @@ import { Slider } from "@/components/ui/slider";
 import { useCart } from "@/contexts/CartContext";
 import { useToast } from "@/components/ui/use-toast";
 import { ShoppingCart, Filter } from "lucide-react";
+import ScrollReveal from "@/components/ScrollReveal";
 
 const ProductList = () => {
   const { category } = useParams();
@@ -23,6 +24,29 @@ const ProductList = () => {
   const [filteredProducts, setFilteredProducts] = useState<any[]>([]);
   const [maxPrice, setMaxPrice] = useState(5000);
   const [showFilters, setShowFilters] = useState(false);
+
+  // Test Supabase connection
+  useEffect(() => {
+    const testSupabase = async () => {
+      try {
+        const { data, error } = await supabase.from('products').select('count()');
+        console.log("Supabase connection test:", { data, error });
+        toast({
+          title: "Database connection",
+          description: error ? `Error: ${error.message}` : `Connected successfully. Found ${data?.[0]?.count || 0} products.`,
+          variant: error ? "destructive" : "default"
+        });
+      } catch (err) {
+        console.error("Supabase connection test failed:", err);
+        toast({
+          title: "Database connection failed",
+          description: `Error: ${err.message}`,
+          variant: "destructive"
+        });
+      }
+    };
+    testSupabase();
+  }, [toast]);
 
   // Fetch products
   useEffect(() => {
@@ -156,7 +180,9 @@ const ProductList = () => {
 
   return (
     <div className="container py-8">
-      <h1 className="text-3xl font-bold mb-8">{getCategoryTitle()}</h1>
+      <ScrollReveal>
+        <h1 className="text-3xl font-bold mb-8">{getCategoryTitle()}</h1>
+      </ScrollReveal>
 
       {/* Mobile filter toggle */}
       <Button 
@@ -227,42 +253,44 @@ const ProductList = () => {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {filteredProducts.map((product) => (
-            <div key={product.id} className="border rounded-lg overflow-hidden hover:shadow-md transition-shadow">
-              <Link to={`/product/${product.id}`}>
-                <div className="h-48 overflow-hidden bg-gray-100">
-                  <img
-                    src={product.image_url}
-                    alt={getProductName(product)}
-                    className="w-full h-full object-contain p-2"
-                    onError={(e) => {
-                      const target = e.target as HTMLImageElement;
-                      target.src = 'https://placehold.co/400x300?text=No+Image';
-                    }}
-                  />
-                </div>
-              </Link>
-              <div className="p-4">
+          {filteredProducts.map((product, index) => (
+            <ScrollReveal key={product.id} direction="up" delay={index * 0.1} className="h-full">
+              <div key={product.id} className="border rounded-lg overflow-hidden hover:shadow-md transition-shadow">
                 <Link to={`/product/${product.id}`}>
-                  <h2 className="font-semibold mb-2 hover:text-primary transition-colors">
-                    {getProductName(product)}
-                  </h2>
+                  <div className="h-48 overflow-hidden bg-gray-100">
+                    <img
+                      src={product.image_url}
+                      alt={getProductName(product)}
+                      className="w-full h-full object-contain p-2"
+                      onError={(e) => {
+                        const target = e.target as HTMLImageElement;
+                        target.src = 'https://placehold.co/400x300?text=No+Image';
+                      }}
+                    />
+                  </div>
                 </Link>
-                <p className="text-sm text-gray-600 mb-4 line-clamp-2 min-h-[40px]">
-                  {getProductDescription(product)}
-                </p>
-                <div className="flex items-center justify-between">
-                  <span className="font-bold">${product.price?.toFixed(2) || "0.00"}</span>
-                  <Button
-                    size="sm"
-                    onClick={() => handleAddToCart(product)}
-                  >
-                    <ShoppingCart className="h-4 w-4 mr-2" />
-                    {t("Add", "إضافة")}
-                  </Button>
+                <div className="p-4">
+                  <Link to={`/product/${product.id}`}>
+                    <h2 className="font-semibold mb-2 hover:text-primary transition-colors">
+                      {getProductName(product)}
+                    </h2>
+                  </Link>
+                  <p className="text-sm text-gray-600 mb-4 line-clamp-2 min-h-[40px]">
+                    {getProductDescription(product)}
+                  </p>
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold">${product.price?.toFixed(2) || "0.00"}</span>
+                    <Button
+                      size="sm"
+                      onClick={() => handleAddToCart(product)}
+                    >
+                      <ShoppingCart className="h-4 w-4 mr-2" />
+                      {t("Add", "إضافة")}
+                    </Button>
+                  </div>
                 </div>
               </div>
-            </div>
+            </ScrollReveal>
           ))}
         </div>
       )}

@@ -7,6 +7,8 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import { ShoppingCart, ArrowLeft, Heart, Share2 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { ProductImageUpload } from '@/components/ProductImageUpload';
+import ScrollReveal from '@/components/ScrollReveal';
 
 const ProductDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -129,19 +131,18 @@ const ProductDetail = () => {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         {/* Image section */}
-        <div>
-          <div className="border rounded-lg p-4 bg-white">
-            <img
-              src={product.image_url}
-              alt={getProductName()}
-              className="w-full h-80 object-contain"
-              onError={(e) => {
-                const target = e.target as HTMLImageElement;
-                target.src = 'https://placehold.co/600x400?text=No+Image';
-              }}
-            />
+        <ScrollReveal>
+          <div>
+            <div className="border rounded-lg p-4 bg-white">
+              <ProductImageUpload
+                productId={product.id}
+                currentImageUrl={product.image_url}
+                onImageUpdate={() => {}}
+                showChangeButton={false}
+              />
+            </div>
           </div>
-        </div>
+        </ScrollReveal>
         
         {/* Content section */}
         <div className="space-y-6">

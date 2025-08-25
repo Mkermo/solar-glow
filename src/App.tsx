@@ -7,6 +7,8 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ProtectedRoute } from '@/components/ProtectedRoute'; // Only import ProtectedRoute from here
+import { useEffect } from 'react';
+import { setupStorage } from '@/lib/setupStorage';
 import Footer from "@/components/Footer";
 import MainLayout from "./layouts/MainLayout";
 import Index from "./pages/Index";
@@ -32,6 +34,7 @@ import Profile from "./pages/Profile";
 import Chat from "./pages/Chat";
 import LoginSuccess from "./pages/LoginSuccess";
 import Dashboard from "./pages/Dashboard";
+import ProductManagement from "./pages/Dashboard/ProductManagement";
 import ProductEdit from "./pages/ProductEdit";
 import AddProduct from "./pages/AddProduct";
 import Unauthorized from "./pages/Unauthorized";
@@ -39,6 +42,13 @@ import Unauthorized from "./pages/Unauthorized";
 const queryClient = new QueryClient();
 
 function App() {
+  // Setup storage buckets on app initialization
+  useEffect(() => {
+    setupStorage().then(result => {
+      console.log('Storage setup result:', result);
+    });
+  }, []);
+  
   return (
     <QueryClientProvider client={queryClient}>
       <LanguageProvider>
@@ -52,6 +62,7 @@ function App() {
                     <Route path="/login" element={<Login />} />
                     <Route path="/signup" element={<Signup />} />
                     <Route path="/solar-education" element={<SolarEducation />} />
+                    <Route path="/education" element={<SolarEducation />} />
                     <Route path="/products/:category" element={<ProductListing />} />
                     <Route path="/product/:id" element={<ProductDetail />} />
                     <Route path="/product/:id-ar" element={<ProductDetail />} />
@@ -66,13 +77,16 @@ function App() {
                     
                     {/* Protected Admin Routes */}
                     <Route 
-                      path="/dashboard/*" 
+                      path="/dashboard"
                       element={
                         <ProtectedRoute requireAdmin>
                           <Dashboard />
                         </ProtectedRoute>
-                      } 
-                    />
+                      }
+                    >
+                      <Route index element={<ProductManagement />} />
+                      <Route path="products" element={<ProductManagement />} />
+                    </Route>
                     
                     {/* Forum Routes */}
                     <Route path="/forum" element={<Forum />} />
