@@ -5,6 +5,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { MessageSquare, PlusCircle, Filter } from "lucide-react";
+import ScrollReveal from "@/components/ScrollReveal";
 
 const Forum = () => {
   const { t, lang } = useLanguage();
@@ -61,113 +62,123 @@ const Forum = () => {
   };
 
   return (
-    <div className="container py-8">
-      <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold">{t("Community Forum", "منتدى المجتمع")}</h1>
-        {user && (
-          <Button asChild>
-            <Link to="/forum/new-topic">
-              <PlusCircle className="mr-2 h-4 w-4" />
-              {t("New Topic", "موضوع جديد")}
-            </Link>
-          </Button>
-        )}
-      </div>
+    <div className="container py-8" dir={lang === "ar" ? "rtl" : "ltr"}>
+      <ScrollReveal initiallyVisible={true}>
+        <div className="flex justify-between items-center mb-8">
+          <h1 className="text-3xl font-bold">{t("Community Forum", "منتدى المجتمع")}</h1>
+          {user && (
+            <Button asChild>
+              <Link to="/forum/new-topic">
+                <PlusCircle className="mr-2 h-4 w-4" />
+                {t("New Topic", "موضوع جديد")}
+              </Link>
+            </Button>
+          )}
+        </div>
+      </ScrollReveal>
 
       {/* Forum description */}
-      <div className="bg-muted p-4 rounded-lg mb-8">
-        <p>
-          {t(
-            "Welcome to our Solar Energy Community Forum. Share knowledge, ask questions, and connect with other solar enthusiasts.",
-            "مرحبًا بك في منتدى مجتمع الطاقة الشمسية. شارك المعرفة، واطرح الأسئلة، وتواصل مع المهتمين الآخرين بالطاقة الشمسية."
-          )}
-        </p>
-        {!user && (
-          <p className="mt-2">
+      <ScrollReveal delay={0.1}>
+        <div className="bg-muted p-4 rounded-lg mb-8">
+          <p>
             {t(
-              "Please sign in to create new topics or reply to discussions.",
-              "يرجى تسجيل الدخول لإنشاء مواضيع جديدة أو الرد على المناقشات."
+              "Welcome to our Solar Energy Community Forum. Share knowledge, ask questions, and connect with other solar enthusiasts.",
+              "مرحبًا بك في منتدى مجتمع الطاقة الشمسية. شارك المعرفة، واطرح الأسئلة، وتواصل مع المهتمين الآخرين بالطاقة الشمسية."
             )}
           </p>
-        )}
-      </div>
+          {!user && (
+            <p className="mt-2">
+              {t(
+                "Please sign in to create new topics or reply to discussions.",
+                "يرجى تسجيل الدخول لإنشاء مواضيع جديدة أو الرد على المناقشات."
+              )}
+            </p>
+          )}
+        </div>
+      </ScrollReveal>
 
       {/* Categories */}
-      <div className="mb-12">
-        <h2 className="text-2xl font-semibold mb-4">{t("Categories", "الفئات")}</h2>
-        {loading ? (
-          <div className="text-center py-12">
-            <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full mx-auto" />
-          </div>
-        ) : (
-          <div className="grid md:grid-cols-2 gap-4">
-            {categories.map((category) => (
-              <Link
-                key={category.id}
-                to={`/forum/category/${category.id}`}
-                className="flex items-center p-4 border rounded-lg hover:border-primary hover:bg-muted/50 transition-colors"
-              >
-                <div className="h-12 w-12 bg-primary/10 rounded-full flex items-center justify-center mr-4">
-                  <MessageSquare className="h-6 w-6 text-primary" />
-                </div>
-                <div>
-                  <h3 className="font-semibold text-lg">
-                    {lang === 'ar' && category.name_ar ? category.name_ar : category.name}
-                  </h3>
-                  <p className="text-sm text-muted-foreground">
-                    {lang === 'ar' && category.description_ar ? category.description_ar : category.description}
-                  </p>
-                </div>
-              </Link>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* Recent Topics */}
-      <div>
-        <h2 className="text-2xl font-semibold mb-4">{t("Recent Discussions", "المناقشات الأخيرة")}</h2>
-        {loading ? (
-          <div className="text-center py-12">
-            <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full mx-auto" />
-          </div>
-        ) : topics.length === 0 ? (
-          <div className="text-center py-12 border rounded-lg">
-            <MessageSquare className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-            <p>{t("No topics have been created yet.", "لم يتم إنشاء أي مواضيع حتى الآن.")}</p>
-          </div>
-        ) : (
-          <div className="border rounded-lg overflow-hidden">
-            <div className="divide-y">
-              {topics.map((topic) => (
-                <Link
-                  key={topic.id}
-                  to={`/forum/topic/${topic.id}`}
-                  className="flex justify-between items-center p-4 hover:bg-muted/50 transition-colors"
-                >
-                  <div>
-                    <h3 className="font-medium">{topic.title}</h3>
-                    <div className="flex items-center text-sm text-muted-foreground mt-1">
-                      <span>
-                        {t("by", "بواسطة")} {topic.profiles?.username || t("Unknown", "غير معروف")}
-                      </span>
-                      <span className="mx-2">•</span>
-                      <span>
-                        {lang === 'ar' && topic.forum_categories?.name_ar
-                          ? topic.forum_categories.name_ar
-                          : topic.forum_categories?.name}
-                      </span>
+      <ScrollReveal delay={0.2}>
+        <div className="mb-12">
+          <h2 className="text-2xl font-semibold mb-4">{t("Categories", "الفئات")}</h2>
+          {loading ? (
+            <div className="text-center py-12">
+              <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full mx-auto" />
+            </div>
+          ) : (
+            <div className="grid md:grid-cols-2 gap-4">
+              {categories.map((category, index) => (
+                <ScrollReveal key={category.id} direction="up" delay={0.1 + index * 0.05}>
+                  <Link
+                    to={`/forum/category/${category.id}`}
+                    className="flex items-center p-4 border rounded-lg hover:border-primary hover:bg-muted/50 transition-colors"
+                  >
+                    <div className="h-12 w-12 bg-primary/10 rounded-full flex items-center justify-center mr-4">
+                      <MessageSquare className="h-6 w-6 text-primary" />
                     </div>
-                  </div>
-                  <span className="text-sm text-muted-foreground">
-                    {formatDate(topic.created_at)}
-                  </span>
-                </Link>
+                    <div>
+                      <h3 className="font-semibold text-lg">
+                        {lang === 'ar' && category.name_ar ? category.name_ar : category.name}
+                      </h3>
+                      <p className="text-sm text-muted-foreground">
+                        {lang === 'ar' && category.description_ar ? category.description_ar : category.description}
+                      </p>
+                    </div>
+                  </Link>
+                </ScrollReveal>
               ))}
             </div>
-          </div>
-        )}
-      </div>
+          )}
+        </div>
+      </ScrollReveal>
+
+      {/* Recent Topics */}
+      <ScrollReveal delay={0.3}>
+        <div>
+          <h2 className="text-2xl font-semibold mb-4">{t("Recent Discussions", "المناقشات الأخيرة")}</h2>
+          {loading ? (
+            <div className="text-center py-12">
+              <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full mx-auto" />
+            </div>
+          ) : topics.length === 0 ? (
+            <div className="text-center py-12 border rounded-lg">
+              <MessageSquare className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+              <p>{t("No topics have been created yet.", "لم يتم إنشاء أي مواضيع حتى الآن.")}</p>
+            </div>
+          ) : (
+            <div className="border rounded-lg overflow-hidden">
+              <div className="divide-y">
+                {topics.map((topic, index) => (
+                  <ScrollReveal key={topic.id} direction="up" delay={0.1 + index * 0.05}>
+                    <Link
+                      to={`/forum/topic/${topic.id}`}
+                      className="flex justify-between items-center p-4 hover:bg-muted/50 transition-colors"
+                    >
+                      <div>
+                        <h3 className="font-medium">{topic.title}</h3>
+                        <div className="flex items-center text-sm text-muted-foreground mt-1">
+                          <span>
+                            {t("by", "بواسطة")} {topic.profiles?.username || t("Unknown", "غير معروف")}
+                          </span>
+                          <span className="mx-2">•</span>
+                          <span>
+                            {lang === 'ar' && topic.forum_categories?.name_ar
+                              ? topic.forum_categories.name_ar
+                              : topic.forum_categories?.name}
+                          </span>
+                        </div>
+                      </div>
+                      <span className="text-sm text-muted-foreground">
+                        {formatDate(topic.created_at)}
+                      </span>
+                    </Link>
+                  </ScrollReveal>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </ScrollReveal>
     </div>
   );
 };

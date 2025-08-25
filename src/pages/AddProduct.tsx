@@ -70,6 +70,10 @@ export default function AddProduct() {
     setLoading(true);
 
     try {
+      console.log("Testing Supabase connection...");
+      const testQuery = await supabase.from('products').select('count()');
+      console.log("Connection test result:", testQuery);
+      
       const formData = new FormData(e.currentTarget);
       const category = formData.get('category') as string;
       
@@ -94,19 +98,26 @@ export default function AddProduct() {
         is_on_sale: false
       };
 
-      const { error } = await supabase
+      console.log("Submitting product data:", productData);
+
+      const { error, data } = await supabase
         .from('products')
-        .insert([productData]);
+        .insert([productData])
+        .select();
+
+      console.log("Insert result:", { error, data });
 
       if (error) throw error;
 
       toast({
         title: t("success"),
-        description: t("success")
+        description: `Product "${productData.name}" added successfully with ID: ${id}`,
       });
 
+      // Redirect to the dashboard to see the new product
       navigate('/dashboard');
     } catch (error) {
+      console.error("Error adding product:", error);
       toast({
         variant: "destructive",
         title: t("error"),

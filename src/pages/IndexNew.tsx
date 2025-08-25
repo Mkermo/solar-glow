@@ -6,20 +6,10 @@ import { Sun, ArrowRight, Truck, Package, Check } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import ScrollReveal from "@/components/ScrollReveal";
 
-// Define the Product interface
-interface Product {
-  id: string;
-  name: string;
-  price: number;
-  image: string;
-  description: string;
-  category: string;
-}
-
 const Index = () => {
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
-  const [products, setProducts] = useState<Product[]>([]);
+  const [error, setError] = useState(null);
+  const [products, setProducts] = useState([]);
   const navigate = useNavigate();
 
   // Get language context
