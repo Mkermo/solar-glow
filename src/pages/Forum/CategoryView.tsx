@@ -9,6 +9,7 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/componen
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { MessageSquare, AlertCircle, Clock, ChevronLeft, Plus } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
+import TopicListItem from "@/components/forum/TopicListItem";
 
 interface Topic {
   id: string;
@@ -58,10 +59,13 @@ const CategoryView = () => {
         if (categoryError) throw categoryError;
         setCategory(categoryData);
         
-        // Fetch topics for this category
+        // Fetch topics for this category with user profiles
         const { data: topicsData, error: topicsError } = await supabase
           .from('forum_topics')
-          .select('*')
+          .select(`
+            *,
+            profiles:user_id (username, avatar_url, email)
+          `)
           .eq('category_id', categoryId)
           .order('is_sticky', { ascending: false })
           .order('created_at', { ascending: false });
@@ -177,51 +181,23 @@ const CategoryView = () => {
           </CardContent>
         </Card>
       ) : (
-        <div className="space-y-4">
-          {topics.map((topic) => (
-            <Card 
-              key={topic.id}
-              className={topic.is_sticky ? "border-primary/50 bg-primary/5" : ""}
-            >
-              <CardHeader className="pb-2">
-                <Link to={`/forum/topic/${topic.id}`}>
-                  <CardTitle className="hover:text-primary transition-colors">
-                    {topic.is_sticky && (
-                      <span className="text-sm font-medium text-primary mr-2">
-                        [{t("Sticky", "مثبت")}]
-                      </span>
-                    )}
-                    {topic.title}
-                  </CardTitle>
-                </Link>
-              </CardHeader>
-              <CardContent className="pb-2">
-                <p className="line-clamp-2 text-muted-foreground">
-                  {topic.content.replace(/<[^>]*>/g, '')}
-                </p>
-              </CardContent>
-              <CardFooter className="flex justify-between">
-                <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                  <div className="flex items-center gap-1">
-                    <MessageSquare className="h-4 w-4" />
-                    <span>{topic.comment_count}</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <Clock className="h-4 w-4" />
-                    <span>
-                      {formatDistanceToNow(new Date(topic.created_at), { addSuffix: true })}
-                    </span>
-                  </div>
+        <Card>
+          <CardContent className="p-0">
+            <div className="divide-y">
+              {topics.map((topic) => (
+                <div key={topic.id} className={topic.is_sticky ? "bg-primary/5" : ""}>
+                  <TopicListItem 
+                    topic={{
+                      ...topic,
+                      forum_categories: { name: category.name }
+                    }}
+                    showCategory={false}
+                  />
                 </div>
-                <Button variant="ghost" size="sm" asChild>
-                  <Link to={`/forum/topic/${topic.id}`}>
-                    {t("Read more", "اقرأ المزيد")}
-                  </Link>
-                </Button>
-              </CardFooter>
-            </Card>
-          ))}
-        </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
       )}
     </div>
   );

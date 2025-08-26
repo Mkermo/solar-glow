@@ -1,5 +1,5 @@
 import { useState, useEffect, FormEvent } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useAuth } from "@/contexts/AuthContext";
@@ -8,59 +8,215 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { ChevronLeft, Send, Loader2, Flag, Trash, AlertCircle } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+import { ChevronLeft, Send, Loader2, Flag, Trash, AlertCircle, RefreshCw } from "lucide-react";
+
+// Helper function to get initials from a name
+const getInitials = (name) => {
+  if (!name) return "??";
+  return name
+    .split(" ")
+    .map((part) => part[0])
+    .join("")
+    .toUpperCase()
+    .substring(0, 2);
+};
 
 const TopicView = () => {
   const { topicId } = useParams<{ topicId: string }>();
   const { t, lang } = useLanguage();
   const { user } = useAuth();
   const { toast } = useToast();
+  const navigate = useNavigate();
   
   const [topic, setTopic] = useState<any>(null);
   const [replies, setReplies] = useState<any[]>([]);
   const [replyContent, setReplyContent] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [loadRetries, setLoadRetries] = useState(0);
+  const [categoryName, setCategoryName] = useState<string>("");
+  const [authorName, setAuthorName] = useState<string>("Anonymous");
+  const [viewCount, setViewCount] = useState(0);
 
-  useEffect(() => {
-    async function fetchTopicData() {
-      setLoading(true);
+  const loadTopic = async () => {
+    setLoading(true);
+    
+    // Set a timeout to prevent infinite loading
+    const loadingTimeout = setTimeout(() => {
+      if (loading) {
+        setLoading(false);
+        toast({
+          title: t("Loading Timeout", "انتهت مهلة التحميل"),
+          description: t(
+            "The topic took too long to load. Please try refreshing.",
+            "استغرق تحميل الموضوع وقتًا طويلاً. يرجى محاولة التحديث."
+          ),
+          variant: "destructive"
+        });
+      }
+    }, 10000); // 10 seconds timeout
+
+    try {
+      // Basic existence check
+      const { count, error: checkError } = await supabase
+        .from('forum_topics')
+        .select('*', { count: 'exact', head: true })
+        .eq('id', topicId);
+
+      if (checkError || count === 0) {
+        console.error('Topic not found:', checkError);
+        toast({
+          title: t("Topic Not Found", "الموضوع غير موجود"),
+          description: t(
+            "The topic you are looking for could not be found. It might have been deleted or you may have the wrong link.",
+            "الموضوع الذي تبحث عنه غير موجود. ربما تم حذفه أو قد يكون لديك الرابط الخطأ."
+          ),
+          variant: "destructive"
+        });
+        clearTimeout(loadingTimeout);
+        setLoading(false);
+        return false;
+      }
+
+      // Get topic data directly
+      const { data: topicData, error: topicError } = await supabase
+        .from('forum_topics')
+        .select('*')
+        .eq('id', topicId)
+        .single();
+
+      if (topicError) {
+        console.error('Error fetching topic:', topicError);
+        clearTimeout(loadingTimeout);
+        setLoading(false);
+        return false;
+      }
+
+      // Successfully got topic data
+      console.log("Topic data loaded:", topicData);
+      setTopic(topicData);
+      setViewCount(topicData.view_count || topicData.views || 0);
+
+      // Get category data
       try {
-        // Fetch topic with author and category
-        const { data: topicData, error: topicError } = await supabase
-          .from('forum_topics')
-          .select(`
-            *,
-            profiles(username, avatar_url),
-            forum_categories(name, name_ar)
-          `)
-          .eq('id', topicId)
+        const { data: categoryData } = await supabase
+          .from('forum_categories')
+          .select('name, name_ar')
+          .eq('id', topicData.category_id)
           .single();
+          
+        if (categoryData) {
+          const name = lang === 'ar' && categoryData.name_ar ? categoryData.name_ar : categoryData.name;
+          setCategoryName(name);
+        }
+      } catch (err) {
+        console.warn('Error loading category data:', err);
+        setCategoryName("Unknown Category");
+      }
 
-        if (topicError) throw topicError;
-        setTopic(topicData);
+      // Get user data - with retry mechanism
+      let profileAttempts = 0;
+      const MAX_PROFILE_ATTEMPTS = 3;
+      
+      async function tryGetProfile() {
+        try {
+          const { data: userData } = await supabase
+            .from('profiles')
+            .select('username, avatar_url, email')
+            .eq('id', topicData.user_id)
+            .single();
+            
+          if (userData) {
+            setAuthorName(userData.username || "User");
+            return true;
+          } else if (profileAttempts < MAX_PROFILE_ATTEMPTS) {
+            profileAttempts++;
+            await new Promise(resolve => setTimeout(resolve, 500));
+            return tryGetProfile();
+          } else {
+            // All attempts failed, create a profile
+            await supabase.from('profiles').upsert({
+              id: topicData.user_id,
+              username: 'User_' + topicData.user_id.substring(0, 6),
+              updated_at: new Date().toISOString()
+            });
+            setAuthorName('User_' + topicData.user_id.substring(0, 6));
+          }
+        } catch (err) {
+          console.warn('Error loading user profile:', err);
+          setAuthorName("User_" + topicData.user_id.substring(0, 6));
+        }
+        return false;
+      }
+      
+      await tryGetProfile();
 
-        // Fetch replies
-        const { data: repliesData, error: repliesError } = await supabase
-          .from('forum_replies')
-          .select(`
-            *,
-            profiles(username, avatar_url)
-          `)
+      // Get comments/replies
+      let commentsLoaded = false;
+      
+      // Try forum_comments first
+      try {
+        const { data: comments, error: commentsError } = await supabase
+          .from('forum_comments')
+          .select('*')
           .eq('topic_id', topicId)
           .order('created_at', { ascending: true });
-
-        if (repliesError) throw repliesError;
-        setReplies(repliesData || []);
-      } catch (error) {
-        console.error('Error fetching topic data:', error);
-      } finally {
-        setLoading(false);
+          
+        if (!commentsError && comments && comments.length > 0) {
+          // Process comments
+          setReplies(comments);
+          commentsLoaded = true;
+        }
+      } catch (err) {
+        console.warn('Error loading comments:', err);
       }
-    }
+      
+      // If no comments were loaded, try forum_replies
+      if (!commentsLoaded) {
+        try {
+          const { data: replies, error: repliesError } = await supabase
+            .from('forum_replies')
+            .select('*')
+            .eq('topic_id', topicId)
+            .order('created_at', { ascending: true });
+            
+          if (!repliesError && replies) {
+            setReplies(replies);
+          }
+        } catch (err) {
+          console.warn('Error loading replies:', err);
+        }
+      }
+      
+      // Update view count (try both column names)
+      try {
+        await supabase
+          .from('forum_topics')
+          .update({ 
+            view_count: (topicData.view_count || 0) + 1,
+            views: (topicData.views || 0) + 1
+          })
+          .eq('id', topicId);
+      } catch (err) {
+        console.warn('Could not update view count:', err);
+      }
 
+      clearTimeout(loadingTimeout);
+      setLoading(false);
+      return true;
+    } catch (error) {
+      console.error('Error in topic loading process:', error);
+      clearTimeout(loadingTimeout);
+      setLoading(false);
+      return false;
+    }
+  };
+          
+  // Initial loading
+  useEffect(() => {
     if (topicId) {
-      fetchTopicData();
+      loadTopic();
     }
   }, [topicId]);
 
@@ -77,65 +233,99 @@ const TopicView = () => {
   };
 
   // Submit a new reply
-  const handleReplySubmit = async (e: FormEvent) => {
+  // Format date for display
+  const formatDate = (dateString: string) => {
+    if (!dateString) return "";
+    try {
+      const date = new Date(dateString);
+      return new Intl.DateTimeFormat(lang === 'ar' ? 'ar-SA' : 'en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      }).format(date);
+    } catch (e) {
+      return dateString;
+    }
+  };
+
+  // Submit a reply
+  const handleSubmitReply = async (e: FormEvent) => {
     e.preventDefault();
-    
     if (!user) {
       toast({
         title: t("Authentication Required", "مطلوب تسجيل الدخول"),
-        description: t("Please login to reply.", "يرجى تسجيل الدخول للرد."),
+        description: t(
+          "Please sign in to post a reply.",
+          "الرجاء تسجيل الدخول لنشر رد."
+        ),
         variant: "destructive"
       });
       return;
     }
-    
+
     if (!replyContent.trim()) {
       toast({
         title: t("Empty Reply", "رد فارغ"),
-        description: t("Please enter a reply.", "يرجى إدخال رد."),
+        description: t(
+          "Please enter some content for your reply.",
+          "الرجاء إدخال محتوى للرد الخاص بك."
+        ),
         variant: "destructive"
       });
       return;
     }
-    
+
+    setIsSubmitting(true);
+
     try {
-      setIsSubmitting(true);
-      
-      const { data, error } = await supabase
-        .from('forum_replies')
+      // First try forum_comments
+      const { data: commentData, error: commentError } = await supabase
+        .from('forum_comments')
         .insert({
-          content: replyContent.trim(),
-          topic_id: topicId,
+          content: replyContent,
           user_id: user.id,
-          created_at: new Date().toISOString()
+          topic_id: topicId
         })
         .select();
-        
-      if (error) throw error;
-      
-      // Add the new reply to the list
-      if (data) {
-        const newReply = {
-          ...data[0],
-          profiles: {
-            username: user.user_metadata?.username || user.email,
-            avatar_url: user.user_metadata?.avatar_url
-          }
-        };
-        
-        setReplies([...replies, newReply]);
-        setReplyContent("");
-        
-        toast({
-          title: t("Reply Posted", "تم نشر الرد"),
-          description: t("Your reply has been posted successfully.", "تم نشر ردك بنجاح."),
-        });
+
+      if (commentError) {
+        // If that fails, try forum_replies
+        const { data: replyData, error: replyError } = await supabase
+          .from('forum_replies')
+          .insert({
+            content: replyContent,
+            user_id: user.id,
+            topic_id: topicId
+          })
+          .select();
+
+        if (replyError) {
+          throw replyError;
+        }
+
+        setReplies([...replies, replyData[0]]);
+      } else {
+        setReplies([...replies, commentData[0]]);
       }
+
+      setReplyContent("");
+      toast({
+        title: t("Reply Posted", "تم نشر الرد"),
+        description: t(
+          "Your reply has been posted successfully.",
+          "تم نشر ردك بنجاح."
+        )
+      });
     } catch (error) {
       console.error('Error posting reply:', error);
       toast({
         title: t("Error", "خطأ"),
-        description: t("Failed to post reply. Please try again.", "فشل في نشر الرد. يرجى المحاولة مرة أخرى."),
+        description: t(
+          "There was an error posting your reply. Please try again.",
+          "حدث خطأ أثناء نشر ردك. يرجى المحاولة مرة أخرى."
+        ),
         variant: "destructive"
       });
     } finally {
@@ -143,162 +333,163 @@ const TopicView = () => {
     }
   };
 
-  // Report a topic or reply
-  const handleReport = async (type: 'topic' | 'reply', id: string) => {
-    if (!user) {
-      toast({
-        title: t("Authentication Required", "مطلوب تسجيل الدخول"),
-        description: t("Please login to report content.", "يرجى تسجيل الدخول للإبلاغ عن المحتوى."),
-        variant: "destructive"
-      });
-      return;
-    }
-    
-    try {
-      const { error } = await supabase
-        .from('forum_reports')
-        .insert({
-          reported_by: user.id,
-          content_type: type,
-          content_id: id,
-          created_at: new Date().toISOString()
-        });
-        
-      if (error) throw error;
-      
-      toast({
-        title: t("Report Submitted", "تم إرسال البلاغ"),
-        description: t("Your report has been submitted for review.", "تم إرسال بلاغك للمراجعة."),
-      });
-    } catch (error) {
-      console.error('Error reporting content:', error);
-      toast({
-        title: t("Error", "خطأ"),
-        description: t("Failed to submit report. Please try again.", "فشل في إرسال البلاغ. يرجى المحاولة مرة أخرى."),
-        variant: "destructive"
-      });
-    }
+  const handleRetryLoading = () => {
+    setLoadRetries(prev => prev + 1);
+    loadTopic();
   };
+
+
 
   if (loading) {
     return (
-      <div className="container py-20 text-center">
-        <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full mx-auto" />
+      <div className="container py-8">
+        <div className="mb-8">
+          <Button variant="ghost" size="sm" onClick={() => navigate('/forum')}>
+            <ChevronLeft className="mr-2 h-4 w-4" />
+            {t("Back to Forum", "العودة إلى المنتدى")}
+          </Button>
+        </div>
+        <Card className="mb-8">
+          <CardHeader>
+            <Skeleton className="h-8 w-2/3 mb-2" />
+            <Skeleton className="h-5 w-1/3" />
+          </CardHeader>
+          <CardContent>
+            <Skeleton className="h-6 w-full mb-2" />
+            <Skeleton className="h-6 w-full mb-2" />
+            <Skeleton className="h-6 w-4/5" />
+          </CardContent>
+          <CardFooter>
+            <Skeleton className="h-5 w-1/4" />
+          </CardFooter>
+        </Card>
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-2" />
+          <p>{t("Loading topic...", "جاري تحميل الموضوع...")}</p>
+        </div>
       </div>
     );
   }
 
   if (!topic) {
     return (
-      <div className="container py-20 text-center">
-        <h1 className="text-2xl font-bold mb-4">{t("Topic Not Found", "الموضوع غير موجود")}</h1>
-        <Button asChild>
+      <div className="container py-8">
+        <div className="mb-8">
+          <Button variant="ghost" size="sm" onClick={() => navigate('/forum')}>
+            <ChevronLeft className="mr-2 h-4 w-4" />
+            {t("Back to Forum", "العودة إلى المنتدى")}
+          </Button>
+        </div>
+        <Card className="mb-6 p-8 text-center">
+          <AlertCircle className="h-12 w-12 text-destructive mx-auto mb-4" />
+          <h2 className="text-2xl font-bold mb-2">{t("Topic Not Found", "الموضوع غير موجود")}</h2>
+          <p className="text-muted-foreground mb-6">
+            {t(
+              "The topic you are looking for could not be found. It might have been deleted or you may have the wrong link.",
+              "الموضوع الذي تبحث عنه غير موجود. ربما تم حذفه أو قد يكون لديك الرابط الخطأ."
+            )}
+          </p>
+          <div className="flex justify-center gap-4">
+            <Button onClick={handleRetryLoading} className="gap-2">
+              <RefreshCw className="h-4 w-4" />
+              {t("Try Again", "حاول مرة أخرى")}
+            </Button>
+            <Button variant="outline" onClick={() => navigate('/forum')}>
+              {t("Back to Forum", "العودة إلى المنتدى")}
+            </Button>
+          </div>
+        </Card>
+      </div>
+    );
+
+  return (
+    <div className="container py-8">
+      <div className="mb-8">
+        <Button variant="ghost" size="sm" asChild>
           <Link to="/forum">
             <ChevronLeft className="mr-2 h-4 w-4" />
             {t("Back to Forum", "العودة إلى المنتدى")}
           </Link>
         </Button>
       </div>
-    );
-  }
 
-  const categoryName = lang === 'ar' && topic.forum_categories?.name_ar 
-    ? topic.forum_categories.name_ar 
-    : topic.forum_categories?.name;
-
-  return (
-    <div className="container py-8">
-      <div className="mb-6">
-        <Button variant="ghost" asChild className="mb-4">
-          <Link to={`/forum/category/${topic.category_id}`}>
-            <ChevronLeft className="mr-2 h-4 w-4" />
-            {t("Back to", "العودة إلى")} {categoryName}
-          </Link>
-        </Button>
-        
-        <h1 className="text-3xl font-bold">{topic.title}</h1>
-        
-        <div className="flex items-center text-sm text-muted-foreground mt-2">
-          <span>
-            {t("Posted by", "نشر بواسطة")} {topic.profiles?.username || t("Unknown", "غير معروف")}
-          </span>
-          <span className="mx-2">•</span>
-          <span>{formatDate(topic.created_at)}</span>
-        </div>
-      </div>
-
-      {/* Original post */}
+      {/* Topic card */}
       <Card className="mb-8">
-        <CardHeader className="flex flex-row items-center space-y-0 pb-2">
-          <div className="flex items-center">
-            <Avatar className="h-10 w-10 mr-2">
-              <AvatarImage src={topic.profiles?.avatar_url} />
-              <AvatarFallback>
-                {topic.profiles?.username?.charAt(0) || "U"}
-              </AvatarFallback>
-            </Avatar>
+        <CardHeader>
+          <div className="flex justify-between items-start">
             <div>
-              <p className="font-medium">{topic.profiles?.username || t("Unknown", "غير معروف")}</p>
-              <p className="text-xs text-muted-foreground">{formatDate(topic.created_at)}</p>
+              <h1 className="text-2xl font-bold">{topic.title}</h1>
+              <div className="text-sm text-muted-foreground">
+                <Link to={`/forum/category/${topic.category_id}`} className="hover:underline">
+                  {categoryName}
+                </Link>
+                <span> • {t("Views", "المشاهدات")}: {viewCount}</span>
+              </div>
             </div>
           </div>
         </CardHeader>
         <CardContent>
-          <p className="whitespace-pre-wrap">{topic.content}</p>
+          <div className="prose dark:prose-invert max-w-none" dangerouslySetInnerHTML={{ __html: topic.content.replace(/\n/g, '<br/>') }} />
         </CardContent>
-        <CardFooter className="justify-end border-t pt-4">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => handleReport('topic', topic.id)}
-            className="text-muted-foreground hover:text-destructive"
-          >
-            <Flag className="h-4 w-4 mr-2" />
-            {t("Report", "إبلاغ")}
-          </Button>
+        <CardFooter className="border-t pt-4 flex justify-between items-center">
+          <div className="flex items-center">
+            <Avatar className="h-8 w-8 mr-2">
+              <AvatarImage src={topic.profiles?.avatar_url} />
+              <AvatarFallback>{getInitials(authorName)}</AvatarFallback>
+            </Avatar>
+            <div>
+              <div className="text-sm font-medium">{authorName}</div>
+              <div className="text-xs text-muted-foreground">
+                {formatDate(topic.created_at)}
+              </div>
+            </div>
+          </div>
+          {user && user.id === topic.user_id && (
+            <Button variant="ghost" size="icon">
+              <Trash className="h-4 w-4" />
+            </Button>
+          )}
         </CardFooter>
       </Card>
 
-      {/* Replies */}
-      <h2 className="text-2xl font-semibold mb-4">
-        {t("Replies", "الردود")} ({replies.length})
+      {/* Replies section */}
+      <h2 className="text-xl font-semibold mb-4">
+        {replies.length === 0 
+          ? t("No Replies Yet", "لا توجد ردود حتى الآن") 
+          : t("Replies", "الردود") + ` (${replies.length})`}
       </h2>
-      
+
       {replies.length === 0 ? (
-        <div className="text-center py-12 border rounded-lg mb-8">
-          <p>{t("No replies yet. Be the first to reply!", "لا توجد ردود بعد. كن أول من يرد!")}</p>
+        <div className="text-center py-12 border rounded-md bg-muted/10">
+          <p className="text-muted-foreground">
+            {t("Be the first to reply to this topic!", "كن أول من يرد على هذا الموضوع!")}
+          </p>
         </div>
       ) : (
         <div className="space-y-4 mb-8">
           {replies.map((reply) => (
             <Card key={reply.id}>
-              <CardHeader className="flex flex-row items-center space-y-0 pb-2">
+              <CardContent className="pt-6">
+                <div className="prose dark:prose-invert max-w-none" dangerouslySetInnerHTML={{ __html: reply.content.replace(/\n/g, '<br/>') }} />
+              </CardContent>
+              <CardFooter className="border-t pt-4 flex justify-between items-center">
                 <div className="flex items-center">
                   <Avatar className="h-8 w-8 mr-2">
                     <AvatarImage src={reply.profiles?.avatar_url} />
-                    <AvatarFallback>
-                      {reply.profiles?.username?.charAt(0) || "U"}
-                    </AvatarFallback>
+                    <AvatarFallback>{getInitials(reply.profiles?.username || "User")}</AvatarFallback>
                   </Avatar>
                   <div>
-                    <p className="font-medium">{reply.profiles?.username || t("Unknown", "غير معروف")}</p>
-                    <p className="text-xs text-muted-foreground">{formatDate(reply.created_at)}</p>
+                    <div className="text-sm font-medium">{reply.profiles?.username || "User"}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {formatDate(reply.created_at)}
+                    </div>
                   </div>
                 </div>
-              </CardHeader>
-              <CardContent>
-                <p className="whitespace-pre-wrap">{reply.content}</p>
-              </CardContent>
-              <CardFooter className="justify-end border-t pt-4">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => handleReport('reply', reply.id)}
-                  className="text-muted-foreground hover:text-destructive"
-                >
-                  <Flag className="h-4 w-4 mr-2" />
-                  {t("Report", "إبلاغ")}
-                </Button>
+                {user && user.id === reply.user_id && (
+                  <Button variant="ghost" size="icon">
+                    <Trash className="h-4 w-4" />
+                  </Button>
+                )}
               </CardFooter>
             </Card>
           ))}
@@ -307,47 +498,39 @@ const TopicView = () => {
 
       {/* Reply form */}
       {user ? (
-        <div className="border rounded-lg p-4">
-          <h3 className="font-semibold mb-4">{t("Post a Reply", "نشر رد")}</h3>
-          <form onSubmit={handleReplySubmit}>
-            <Textarea
-              value={replyContent}
-              onChange={(e) => setReplyContent(e.target.value)}
-              placeholder={t("Write your reply here...", "اكتب ردك هنا...")}
-              rows={5}
-              disabled={isSubmitting}
-              className="mb-4"
-            />
-            <div className="flex justify-end">
-              <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    {t("Posting...", "جاري النشر...")}
-                  </>
-                ) : (
-                  <>
-                    <Send className="mr-2 h-4 w-4" />
-                    {t("Post Reply", "نشر الرد")}
-                  </>
-                )}
-              </Button>
-            </div>
-          </form>
-        </div>
-      ) : (
-        <div className="border rounded-lg p-6 text-center">
-          <AlertCircle className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
-          <p className="mb-4">{t("You need to be logged in to reply.", "يجب أن تكون مسجل الدخول للرد.")}</p>
-          <Button asChild>
-            <Link to="/login">
-              {t("Login to Reply", "تسجيل الدخول للرد")}
-            </Link>
+        <form onSubmit={handleSubmitReply} className="mt-8">
+          <h3 className="text-lg font-medium mb-2">{t("Post a Reply", "نشر رد")}</h3>
+          <Textarea
+            value={replyContent}
+            onChange={(e) => setReplyContent(e.target.value)}
+            placeholder={t("Write your reply...", "اكتب ردك...")}
+            className="min-h-[120px] mb-4"
+          />
+          <Button type="submit" disabled={isSubmitting}>
+            {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            <Send className="mr-2 h-4 w-4" />
+            {t("Post Reply", "نشر الرد")}
           </Button>
-        </div>
+        </form>
+      ) : (
+        <Card className="mt-8 p-6">
+          <p className="mb-4 text-center">
+            {t(
+              "You must be signed in to reply to this topic.",
+              "يجب عليك تسجيل الدخول للرد على هذا الموضوع."
+            )}
+          </p>
+          <div className="flex justify-center">
+            <Button asChild>
+              <Link to="/login">
+                {t("Sign In", "تسجيل الدخول")}
+              </Link>
+            </Button>
+          </div>
+        </Card>
       )}
     </div>
   );
-};
+}
 
 export default TopicView;

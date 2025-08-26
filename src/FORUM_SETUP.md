@@ -4,20 +4,83 @@ This document provides instructions for setting up the forum functionality in So
 
 ## Database Setup
 
-You need to run the SQL script in the Supabase dashboard to create the necessary tables:
+You need to run the following SQL script in the Supabase dashboard to create the necessary tables:
 
 1. Go to your [Supabase Dashboard](https://app.supabase.com/)
 2. Select your project
 3. Go to the "SQL Editor" in the left navigation
-4. Open the file `src/scripts/setup-forum-tables.sql` in your local project
-5. Copy and paste the entire script into the SQL Editor
-6. Click "Run" to execute the script
+4. Create a new query and paste the following SQL:
+
+```sql
+-- Create forum_categories table
+CREATE TABLE IF NOT EXISTS forum_categories (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name VARCHAR(100) NOT NULL,
+  name_ar VARCHAR(100),
+  description TEXT,
+  description_ar TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Create forum_topics table
+CREATE TABLE IF NOT EXISTS forum_topics (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  title VARCHAR(200) NOT NULL,
+  content TEXT NOT NULL,
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+  category_id UUID REFERENCES forum_categories(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  is_sticky BOOLEAN DEFAULT false,
+  is_locked BOOLEAN DEFAULT false,
+  view_count INTEGER DEFAULT 0,
+  is_approved BOOLEAN DEFAULT true
+);
+
+-- Create forum_comments table
+CREATE TABLE IF NOT EXISTS forum_comments (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  content TEXT NOT NULL,
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+  topic_id UUID REFERENCES forum_topics(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  is_approved BOOLEAN DEFAULT true
+);
+
+-- Create basic RLS policies
+ALTER TABLE forum_categories ENABLE ROW LEVEL SECURITY;
+ALTER TABLE forum_topics ENABLE ROW LEVEL SECURITY;
+ALTER TABLE forum_comments ENABLE ROW LEVEL SECURITY;
+
+-- Public read access for categories
+CREATE POLICY "Allow public read access for categories"
+  ON forum_categories FOR SELECT USING (true);
+
+-- Public read access for topics
+CREATE POLICY "Allow public read access for topics"
+  ON forum_topics FOR SELECT USING (true);
+
+-- Authenticated users can create topics
+CREATE POLICY "Allow authenticated users to create topics"
+  ON forum_topics FOR INSERT TO authenticated USING (true);
+
+-- Public read access for comments
+CREATE POLICY "Allow public read access for comments"
+  ON forum_comments FOR SELECT USING (true);
+
+-- Authenticated users can create comments
+CREATE POLICY "Allow authenticated users to create comments"
+  ON forum_comments FOR INSERT TO authenticated USING (true);
+```
+
+5. Click "Run" to execute the script
 
 This will create the following tables:
 
 - `forum_categories` - For forum categories
 - `forum_topics` - For forum topics/posts
-- `forum_replies` - For replies to topics
+- `forum_comments` - For comments on topics
 
 ## Storage Buckets
 

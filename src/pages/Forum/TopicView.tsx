@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
+import { incrementTopicViewCount } from "@/lib/forumUtils";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
@@ -55,32 +56,97 @@ const TopicView = () => {
     const fetchTopic = async () => {
       try {
         if (!topicId) return;
+        
+        console.log('Fetching topic with ID:', topicId);
+
+        // Log the topic ID we're trying to fetch
+        console.log(`Looking for topic with ID: ${topicId}`);
+        
+        // First check if the topic exists
+        const { count, error: countError } = await supabase
+          .from("forum_topics")
+          .select('*', { count: 'exact', head: true })
+          .eq("id", topicId);
+          
+        if (countError) {
+          console.error('Error checking if topic exists:', countError);
+        } else {
+          console.log(`Topic exists check: found ${count} matching topics`);
+          
+          // If no topic found, try debugging
+          if (count === 0) {
+            // List some topics to see if any exist
+            const { data: sampleTopics, error: sampleError } = await supabase
+              .from("forum_topics")
+              .select('id, title')
+              .limit(5);
+              
+            if (sampleError) {
+              console.error('Error fetching sample topics:', sampleError);
+            } else {
+              console.log('Sample topics in database:', sampleTopics);
+            }
+          }
+        }
 
         const { data: topicData, error: topicError } = await supabase
           .from("forum_topics")
           .select(`
             *,
-            users:user_id (email)
+            profiles:user_id (email),
+            forum_categories:category_id (name, name_ar)
           `)
           .eq("id", topicId)
           .single();
 
-        if (topicError) throw topicError;
+        if (topicError) {
+          console.error('Error fetching topic data:', topicError);
+          
+          // Try to check if the topic exists but the query format is wrong
+          const { data: simpleTopic, error: simpleError } = await supabase
+            .from("forum_topics")
+            .select('*')
+            .eq("id", topicId)
+            .single();
+            
+          if (simpleError) {
+            console.error('Topic truly does not exist:', simpleError);
+          } else {
+            console.log('Found topic with simpler query:', simpleTopic);
+            console.log('The issue may be with the join relationships');
+          }
+          
+          throw topicError;
+        }
+        
+        console.log('Topic data received:', topicData);
 
         // Format the topic data
         const formattedTopic = {
           ...topicData,
-          user_email: topicData.users?.email || "Unknown User"
+          user_email: topicData.profiles?.email || "Unknown User"
         };
 
         setTopic(formattedTopic);
+        
+        // Increment the view count when a topic is viewed
+        if (topicId) {
+          incrementTopicViewCount(topicId);
+          console.log('Incrementing view count for topic:', topicId);
+          
+          // Update view count in UI as well
+          setTopic(prevTopic => ({
+            ...prevTopic,
+            view_count: (prevTopic?.view_count || 0) + 1
+          }));
+        }
 
         // Fetch comments for this topic
         const { data: commentsData, error: commentsError } = await supabase
           .from("forum_comments")
           .select(`
             *,
-            users:user_id (email)
+            profiles:user_id (email)
           `)
           .eq("topic_id", topicId)
           .order("created_at", { ascending: true });
@@ -90,7 +156,7 @@ const TopicView = () => {
         // Format the comments data
         const formattedComments = commentsData.map(comment => ({
           ...comment,
-          user_email: comment.users?.email || "Unknown User"
+          user_email: comment.profiles?.email || "Unknown User"
         }));
 
         setComments(formattedComments);

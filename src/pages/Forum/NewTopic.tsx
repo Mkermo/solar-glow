@@ -121,15 +121,50 @@ const NewTopic = () => {
     try {
       setIsSubmitting(true);
       
+      console.log('Creating new topic with data:', {
+        title: title.trim(),
+        content: content.trim(),
+        user_id: session.user.id,
+        category_id: effectiveCategoryId
+      });
+      
+      // Check if the forum_topics table has view_count or views column
+      const { data: columnCheck, error: columnError } = await supabase
+        .rpc('get_table_columns', { table_name: 'forum_topics' })
+        .select();
+        
+      const hasViewCount = columnCheck?.some((col: any) => col.column_name === 'view_count');
+      const hasViews = columnCheck?.some((col: any) => col.column_name === 'views');
+      
+      console.log('Column check for forum_topics:', { hasViewCount, hasViews, columnCheck });
+      
+      // Create the new topic with the correct column for view count
+      const topicData: any = {
+        title: title.trim(),
+        content: content.trim(),
+        user_id: session.user.id,
+        category_id: effectiveCategoryId,
+        created_at: new Date().toISOString()
+      };
+      
+      // Add the appropriate view count field
+      if (hasViewCount) {
+        topicData.view_count = 0;
+      } else if (hasViews) {
+        topicData.views = 0;
+      }
+      
+      // Add is_approved field if it exists
+      const hasIsApproved = columnCheck?.some((col: any) => col.column_name === 'is_approved');
+      if (hasIsApproved) {
+        topicData.is_approved = true;
+      }
+      
+      console.log('Creating topic with data:', topicData);
+      
       const { data, error } = await supabase
         .from('forum_topics')
-        .insert({
-          title: title.trim(),
-          content: content.trim(),
-          user_id: session.user.id,
-          category_id: effectiveCategoryId,
-          created_at: new Date().toISOString()
-        })
+        .insert(topicData)
         .select()
         .single();
         
@@ -148,8 +183,10 @@ const NewTopic = () => {
       
       // Redirect to the new topic
       if (data) {
+        console.log('Topic created successfully:', data);
         navigate(`/forum/topic/${data.id}`);
       } else {
+        console.warn('Topic creation succeeded but no data returned');
         const effectiveCategoryId = categoryId || selectedCategory;
         if (effectiveCategoryId) {
           navigate(`/forum/category/${effectiveCategoryId}`);

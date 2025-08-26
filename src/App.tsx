@@ -10,6 +10,8 @@ import { ProtectedRoute } from '@/components/ProtectedRoute'; // Only import Pro
 import { useEffect } from 'react';
 import { setupStorage } from '@/lib/setupStorage';
 import ForumCategoriesInitializer from '@/components/ForumCategoriesInitializer';
+import { initializeForumTables } from '@/lib/forumTableSetup';
+import CreateForumTestData from '@/components/CreateForumTestData';
 import Footer from "@/components/Footer";
 import MainLayout from "./layouts/MainLayout";
 import Index from "./pages/Index";
@@ -31,6 +33,7 @@ import Forum from "./pages/Forum";
 import CategoryView from "./pages/Forum/CategoryView";
 import TopicView from "./pages/Forum/TopicView";
 import NewTopic from "./pages/Forum/NewTopic";
+import ForumDebug from "./pages/ForumDebug";
 import Profile from "./pages/Profile";
 import Chat from "./pages/Chat";
 import LoginSuccess from "./pages/LoginSuccess";
@@ -45,8 +48,14 @@ const queryClient = new QueryClient();
 function App() {
   // Setup storage buckets on app initialization
   useEffect(() => {
+    // Check storage buckets
     setupStorage().then(result => {
       console.log('Storage setup result:', result);
+    });
+    
+    // Check forum tables
+    initializeForumTables().then(result => {
+      console.log('Forum tables check result:', result);
     });
   }, []);
   
@@ -57,6 +66,7 @@ function App() {
           <AuthProvider>
             <CartProvider>
               <ForumCategoriesInitializer />
+              <CreateForumTestData />
               <BrowserRouter>
                 <MainLayout>
                   <Routes>
@@ -94,6 +104,7 @@ function App() {
                     <Route path="/forum" element={<Forum />} />
                     <Route path="/forum/category/:categoryId" element={<CategoryView />} />
                     <Route path="/forum/topic/:topicId" element={<TopicView />} />
+                    <Route path="/forum/debug" element={<ForumDebug />} />
                     <Route 
                       path="/forum/new-topic" 
                       element={
