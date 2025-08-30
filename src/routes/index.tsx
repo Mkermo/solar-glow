@@ -19,9 +19,10 @@ const Education = lazy(() => import("@/pages/Education"));
 
 // Forum pages
 const Forum = lazy(() => import("@/pages/Forum"));
-const ForumCategory = lazy(() => import("@/pages/ForumCategory"));
+// Use the newer components from the Forum directory
+const ForumCategory = lazy(() => import("@/pages/Forum/CategoryView"));
 const NewTopic = lazy(() => import("@/pages/Forum/NewTopic"));
-const TopicView = lazy(() => import("@/pages/TopicView"));
+const TopicView = lazy(() => import("@/pages/Forum/TopicView"));
 const ForumManagement = lazy(() => import("@/pages/Dashboard/ForumManagement"));
 
 // Loading component

@@ -53,70 +53,104 @@ const TopicView = () => {
   });
 
   useEffect(() => {
+    let isMounted = true;
+    let timeoutId;
+    
     const fetchTopic = async () => {
       try {
-        if (!topicId) return;
+        if (!topicId) {
+          setIsLoading(false);
+          return;
+        }
+        
+        // Set a timeout to prevent infinite loading
+        timeoutId = setTimeout(() => {
+          if (isMounted) {
+            console.log('Loading timeout reached, stopping load operation');
+            setIsLoading(false);
+            toast({
+              title: "Loading timeout",
+              description: "The topic is taking too long to load. Please try again.",
+              variant: "destructive",
+            });
+          }
+        }, 10000); // 10 second timeout
         
         console.log('Fetching topic with ID:', topicId);
-
-        // Log the topic ID we're trying to fetch
-        console.log(`Looking for topic with ID: ${topicId}`);
         
-        // First check if the topic exists
-        const { count, error: countError } = await supabase
-          .from("forum_topics")
-          .select('*', { count: 'exact', head: true })
-          .eq("id", topicId);
-          
-        if (countError) {
-          console.error('Error checking if topic exists:', countError);
-        } else {
-          console.log(`Topic exists check: found ${count} matching topics`);
-          
-          // If no topic found, try debugging
-          if (count === 0) {
-            // List some topics to see if any exist
-            const { data: sampleTopics, error: sampleError } = await supabase
-              .from("forum_topics")
-              .select('id, title')
-              .limit(5);
-              
-            if (sampleError) {
-              console.error('Error fetching sample topics:', sampleError);
-            } else {
-              console.log('Sample topics in database:', sampleTopics);
-            }
-          }
-        }
+        // Skip the existence check to reduce database queries
 
-        const { data: topicData, error: topicError } = await supabase
-          .from("forum_topics")
-          .select(`
-            *,
-            profiles:user_id (email),
-            forum_categories:category_id (name, name_ar)
-          `)
-          .eq("id", topicId)
-          .single();
-
+        // Fetch all needed data in parallel to improve performance
+        const [topicResult, commentsResult] = await Promise.all([
+          // Get topic data
+          supabase.from("forum_topics")
+            .select('*, user_id, category_id')
+            .eq("id", topicId)
+            .single(),
+            
+          // Get comments for this topic in the same batch
+          supabase.from("forum_comments")
+            .select(`*, profiles(email)`)
+            .eq("topic_id", topicId)
+            .order("created_at", { ascending: true })
+        ]);
+        
+        // Use let instead of const for topicData since we might need to reassign it
+        let { data: topicData, error: topicError } = topicResult;
+        const { data: commentsData, error: commentsError } = commentsResult;
+        
+        // Handle topic fetch error
         if (topicError) {
           console.error('Error fetching topic data:', topicError);
           
-          // Try to check if the topic exists but the query format is wrong
-          const { data: simpleTopic, error: simpleError } = await supabase
+          // Try a more basic query as a fallback
+          const { data: fallbackTopicData, error: fallbackError } = await supabase
             .from("forum_topics")
-            .select('*')
+            .select('id, title, content, user_id, category_id, created_at')
             .eq("id", topicId)
             .single();
             
-          if (simpleError) {
-            console.error('Topic truly does not exist:', simpleError);
+          if (fallbackError || !fallbackTopicData) {
+            throw topicError;
           } else {
-            console.log('Found topic with simpler query:', simpleTopic);
-            console.log('The issue may be with the join relationships');
+            // Use the fallback data
+            topicData = fallbackTopicData;
           }
-          
-          throw topicError;
+        }
+        
+        // If topic data exists, fetch profile and category info
+        if (topicData) {
+          try {
+            // Fetch profile and category in parallel with error handling
+            const [profileResult, categoryResult] = await Promise.all([
+              supabase.from("profiles")
+                .select('email, username, avatar_url')
+                .eq("id", topicData.user_id)
+                .single()
+                .catch(err => {
+                  console.log('Error fetching profile, using default', err);
+                  return { data: { email: "Unknown User" } };
+                }),
+                
+              supabase.from("forum_categories")
+                .select('name, name_ar')
+                .eq("id", topicData.category_id)
+                .single()
+                .catch(err => {
+                  console.log('Error fetching category, using default', err);
+                  return { data: { name: "Unknown Category" } };
+                })
+            ]);
+            
+            // Add profile and category data to topic
+            topicData.profiles = profileResult.data || { email: "Unknown User" };
+            topicData.forum_categories = categoryResult.data || { name: "Unknown Category" };
+          } catch (err) {
+            console.error('Error fetching related data:', err);
+            // Continue with basic topic data
+            topicData.profiles = { email: "Unknown User" };
+            topicData.forum_categories = { name: "Unknown Category" };
+          }
         }
         
         console.log('Topic data received:', topicData);
@@ -129,28 +163,49 @@ const TopicView = () => {
 
         setTopic(formattedTopic);
         
-        // Increment the view count when a topic is viewed
+        // Increment the view count when a topic is viewed - in the background
+        // This won't block the UI rendering
         if (topicId) {
-          incrementTopicViewCount(topicId);
-          console.log('Incrementing view count for topic:', topicId);
+          // Update view count in UI immediately for better UX
+          setTopic(prevTopic => {
+            // Handle either view_count or views field
+            if (prevTopic?.view_count !== undefined) {
+              return {
+                ...prevTopic,
+                view_count: (prevTopic.view_count || 0) + 1
+              };
+            } else if (prevTopic?.views !== undefined) {
+              return {
+                ...prevTopic,
+                views: (prevTopic.views || 0) + 1
+              };
+            }
+            return prevTopic;
+          });
           
-          // Update view count in UI as well
-          setTopic(prevTopic => ({
-            ...prevTopic,
-            view_count: (prevTopic?.view_count || 0) + 1
-          }));
+          // Don't await this - let it run in the background
+          incrementTopicViewCount(topicId)
+            .then((newCount) => {
+              if (newCount) {
+                // Update with the actual count from server if available
+                setTopic(prevTopic => {
+                  if (!prevTopic) return prevTopic;
+                  
+                  // Use the appropriate field based on what the server returned
+                  const viewCountField = prevTopic.view_count !== undefined ? 'view_count' : 'views';
+                  return {
+                    ...prevTopic,
+                    [viewCountField]: newCount
+                  };
+                });
+              }
+            })
+            .catch(err => console.error('Error incrementing view count:', err));
+            
+          console.log('View count increment initiated for topic:', topicId);
         }
-
-        // Fetch comments for this topic
-        const { data: commentsData, error: commentsError } = await supabase
-          .from("forum_comments")
-          .select(`
-            *,
-            profiles:user_id (email)
-          `)
-          .eq("topic_id", topicId)
-          .order("created_at", { ascending: true });
-
+        
+        // We already fetched comments in parallel above
         if (commentsError) throw commentsError;
 
         // Format the comments data

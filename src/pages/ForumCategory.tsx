@@ -36,7 +36,7 @@ const ForumCategory = () => {
             profiles(username, avatar_url)
           `)
           .eq('category_id', categoryId)
-          .eq('is_approved', true)
+          // Removed filter on is_approved as it doesn't exist in the schema
           .order('created_at', { ascending: false });
 
         if (topicsError) throw topicsError;

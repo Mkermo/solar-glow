@@ -3,7 +3,6 @@ import { Link } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useAuth } from "@/contexts/AuthContext";
-import { ensureForumDbSetup } from "@/lib/forumDbSetup";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -54,74 +53,51 @@ const Forum = () => {
 
   // Fetch forum data on component mount
   useEffect(() => {
-    let isMounted = true;
-    let timeoutId;
-    
     async function fetchForumData() {
       setLoading(true);
-      
-      // Set a timeout to prevent infinite loading
-      timeoutId = setTimeout(() => {
-        if (isMounted) {
-          console.log('Loading timeout reached, setting default state');
-          setLoading(false);
-        }
-      }, 10000); // 10 second timeout
       
       try {
         console.log('Fetching forum data with optimized loading...');
         
-        // First ensure database setup is complete
-        const dbSetup = await ensureForumDbSetup();
-        if (!dbSetup.success) {
-          console.warn('Forum database setup issue:', dbSetup.message);
-        }
-        
-        // Get the direct categories data first as a fallback
-        const { data: fallbackCategories } = await supabase
-          .from('forum_categories')
-          .select('*')
-          .order('name', { ascending: true });
-          
-        if (fallbackCategories && fallbackCategories.length > 0 && isMounted) {
-          setCategories(fallbackCategories);
-        }
-        
         // Use the optimized forum data loader
+        const { loadForumData } = await import('@/lib/forumDataLoader');
+        
         try {
-          const { loadForumData } = await import('@/lib/forumDataLoader');
+          // Load all forum data in an optimized way
           const forumData = await loadForumData();
           
-          // Only update state if component is still mounted
-          if (isMounted) {
-            // Set state with the optimized data
-            setCategories(forumData.categories);
-            setRecentTopics(forumData.recentTopics);
-            setPopularTopics(forumData.popularTopics);
-            setCategoryTopics(forumData.categoryTopics);
-            console.log('Forum data loaded successfully');
-          }
+          // Set state with the optimized data
+          setCategories(forumData.categories);
+          setRecentTopics(forumData.recentTopics);
+          setPopularTopics(forumData.popularTopics);
+          setCategoryTopics(forumData.categoryTopics);
+          
+          console.log('Forum data loaded successfully');
         } catch (dataError) {
           console.error('Error loading forum data:', dataError);
+          
+          // Even if there's an error, try to show at least the categories
+          try {
+            const { data: categoriesData } = await supabase
+              .from('forum_categories')
+              .select('*')
+              .order('name', { ascending: true });
+            
+            if (categoriesData && categoriesData.length > 0) {
+              setCategories(categoriesData);
+            }
+          } catch (fallbackErr) {
+            console.error('Failed to recover with categories-only query:', fallbackErr);
+          }
         }
       } catch (error) {
         console.error('Error in fetchForumData:', error);
       } finally {
-        // Clear the timeout and set loading to false
-        clearTimeout(timeoutId);
-        if (isMounted) {
-          setLoading(false);
-        }
+        setLoading(false);
       }
     }
 
     fetchForumData();
-    
-    // Cleanup function to prevent state updates on unmounted component
-    return () => {
-      isMounted = false;
-      clearTimeout(timeoutId);
-    };
   }, []);
 
   // Format date for display

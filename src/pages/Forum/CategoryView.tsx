@@ -42,6 +42,9 @@ const CategoryView = () => {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    let isMounted = true;
+    let timeoutId;
+    
     const fetchCategoryAndTopics = async () => {
       if (!categoryId) return;
       
@@ -49,54 +52,77 @@ const CategoryView = () => {
         setLoading(true);
         setError(null);
         
-        // Fetch category details
-        const { data: categoryData, error: categoryError } = await supabase
+        // Set a timeout to prevent infinite loading
+        timeoutId = setTimeout(() => {
+          if (isMounted) {
+            console.log('Loading timeout reached, setting default state');
+            setLoading(false);
+            setError('Loading timed out. Please try refreshing the page.');
+          }
+        }, 10000); // 10 second timeout
+        
+        // First fetch using the direct approach to ensure we have data
+        const { data: directCategoryData } = await supabase
           .from('forum_categories')
           .select('*')
           .eq('id', categoryId)
           .single();
           
-        if (categoryError) throw categoryError;
-        setCategory(categoryData);
+        if (directCategoryData && isMounted) {
+          setCategory(directCategoryData);
+        }
         
-        // Fetch topics for this category with user profiles
-        const { data: topicsData, error: topicsError } = await supabase
-          .from('forum_topics')
-          .select(`
-            *,
-            profiles:user_id (username, avatar_url, email)
-          `)
-          .eq('category_id', categoryId)
-          .order('is_sticky', { ascending: false })
-          .order('created_at', { ascending: false });
+        // Import the optimized data loader
+        try {
+          const { fetchCategoryWithTopics } = await import('@/lib/forumDataLoader');
           
-        if (topicsError) throw topicsError;
-        
-        // For each topic, count the number of comments
-        const topicsWithCommentCounts = await Promise.all(topicsData.map(async (topic) => {
-          const { count, error: countError } = await supabase
-            .from('forum_comments')
-            .select('*', { count: 'exact', head: true })
-            .eq('topic_id', topic.id);
-            
-          if (countError) throw countError;
+          // Use the optimized loader
+          const { category: categoryData, topics: topicsData } = await fetchCategoryWithTopics(categoryId);
           
-          return {
-            ...topic,
-            comment_count: count || 0
-          };
-        }));
-        
-        setTopics(topicsWithCommentCounts);
+          if (isMounted) {
+            setCategory(categoryData);
+            setTopics(topicsData);
+          }
+        } catch (loadError) {
+          console.error('Error using optimized loader:', loadError);
+          
+          // Fallback to direct queries if the optimized loader fails
+          try {
+            // Fetch topics for this category directly
+            const { data: topicsData } = await supabase
+              .from('forum_topics')
+              .select('*')
+              .eq('category_id', categoryId)
+              .order('is_sticky', { ascending: false })
+              .order('created_at', { ascending: false });
+              
+            if (topicsData && isMounted) {
+              setTopics(topicsData);
+            }
+          } catch (fallbackError) {
+            console.error('Fallback query failed:', fallbackError);
+          }
+        }
       } catch (err) {
         console.error('Error fetching category data:', err);
-        setError('Failed to load category data. Please try again later.');
+        if (isMounted) {
+          setError('Failed to load category data. Please try again later.');
+        }
       } finally {
-        setLoading(false);
+        clearTimeout(timeoutId);
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     };
 
     fetchCategoryAndTopics();
+    
+    // Cleanup function to prevent state updates on unmounted component
+    return () => {
+      isMounted = false;
+      clearTimeout(timeoutId);
+    };
   }, [categoryId]);
 
   const handleNewTopic = () => {

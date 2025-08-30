@@ -1,10 +1,19 @@
 import { supabase } from './supabase';
 
+// Cache for schema information to prevent repeated database calls
+let schemaCache = null;
+
 /**
  * Helper function to adapt to different database schemas
  * This is useful when working with different versions of the database
  */
 export async function adaptToDatabaseSchema() {
+  // Return cached schema if available
+  if (schemaCache) {
+    console.log('Using cached schema information');
+    return schemaCache;
+  }
+  
   const tables = {
     categories: { exists: false, columns: {} },
     topics: { exists: false, columns: {} },
@@ -113,12 +122,18 @@ export async function adaptToDatabaseSchema() {
     
     console.log(`Using ${viewColumn} as the view count column`);
     
-    return {
+    // Create schema result
+    const schemaResult = {
       tables,
       viewCountField: viewColumn,
       commentTable: tables.comments.exists ? 'forum_comments' : 'forum_replies',
       success: tables.categories.exists && tables.topics.exists && (tables.comments.exists || tables.replies.exists)
     };
+    
+    // Cache the result
+    schemaCache = schemaResult;
+    
+    return schemaResult;
   } catch (err) {
     console.error('Error in adaptToDatabaseSchema:', err);
     return {
@@ -130,6 +145,9 @@ export async function adaptToDatabaseSchema() {
   }
 }
 
+// Column existence cache
+const columnExistsCache: Record<string, boolean> = {};
+
 /**
  * Checks if a column exists in a table
  * @param tableName The name of the table to check
@@ -137,6 +155,13 @@ export async function adaptToDatabaseSchema() {
  * @returns Promise<boolean> True if the column exists, false otherwise
  */
 export async function columnExists(tableName: string, columnName: string): Promise<boolean> {
+  const cacheKey = `${tableName}:${columnName}`;
+  
+  // Return cached result if available
+  if (columnExistsCache[cacheKey] !== undefined) {
+    return columnExistsCache[cacheKey];
+  }
+  
   try {
     const { data, error } = await supabase
       .from('information_schema.columns')
@@ -147,30 +172,52 @@ export async function columnExists(tableName: string, columnName: string): Promi
       
     if (error) {
       console.error(`Error checking if column ${columnName} exists in ${tableName}:`, error);
+      columnExistsCache[cacheKey] = false;
       return false;
     }
     
-    return data && data.length > 0;
+    const exists = data && data.length > 0;
+    columnExistsCache[cacheKey] = exists;
+    return exists;
   } catch (err) {
     console.error(`Exception checking if column ${columnName} exists in ${tableName}:`, err);
+    columnExistsCache[cacheKey] = false;
     return false;
   }
 }
+
+// View count column name cache
+let viewCountColumnNameCache: string | null = null;
 
 /**
  * Gets the appropriate column name to use for view count (could be 'view_count' or 'views')
  * @returns Promise<string> The name of the column to use
  */
 export async function getViewCountColumnName(): Promise<string> {
+  // Return cached result if available
+  if (viewCountColumnNameCache) {
+    return viewCountColumnNameCache;
+  }
+  
   const hasViewCount = await columnExists('forum_topics', 'view_count');
-  if (hasViewCount) return 'view_count';
+  if (hasViewCount) {
+    viewCountColumnNameCache = 'view_count';
+    return 'view_count';
+  }
   
   const hasViews = await columnExists('forum_topics', 'views');
-  if (hasViews) return 'views';
+  if (hasViews) {
+    viewCountColumnNameCache = 'views';
+    return 'views';
+  }
   
   // Default to view_count
+  viewCountColumnNameCache = 'view_count';
   return 'view_count';
 }
+
+// Table existence cache
+const tableExistsCache: Record<string, boolean> = {};
 
 /**
  * Checks if a table exists in the database
@@ -178,6 +225,11 @@ export async function getViewCountColumnName(): Promise<string> {
  * @returns Promise<boolean> True if the table exists, false otherwise
  */
 export async function tableExists(tableName: string): Promise<boolean> {
+  // Return cached result if available
+  if (tableExistsCache[tableName] !== undefined) {
+    return tableExistsCache[tableName];
+  }
+  
   try {
     const { data, error } = await supabase
       .from('pg_tables')
@@ -187,12 +239,16 @@ export async function tableExists(tableName: string): Promise<boolean> {
       
     if (error) {
       console.error(`Error checking if table ${tableName} exists:`, error);
+      tableExistsCache[tableName] = false;
       return false;
     }
     
-    return data && data.length > 0;
+    const exists = data && data.length > 0;
+    tableExistsCache[tableName] = exists;
+    return exists;
   } catch (err) {
     console.error(`Exception checking if table ${tableName} exists:`, err);
+    tableExistsCache[tableName] = false;
     return false;
   }
 }

@@ -1,4 +1,4 @@
-# Forum Setup Guide
+# Forum Troubleshooting Guide
 
 This guide will help you fix any issues with the forum system in Solar Glow.
 
@@ -6,30 +6,32 @@ This guide will help you fix any issues with the forum system in Solar Glow.
 
 If your forum isn't working properly, follow these steps:
 
-1. Go to the **Forum Debug Page** at `/forum-debug`
-2. Look at the table status to see which forum tables exist
-3. Run the SQL setup scripts in your Supabase SQL Editor:
-   - First run the "Setup Tables" SQL script
-   - Then run the "Fix Existing Tables" SQL script
-4. Return to the Forum Debug page and click "Check Tables" again
-5. If all tables show as "Exists", try creating test data
+1. Go to the **Forum Diagnostics Page** at `/forum/diagnostics`
+2. Use the "Topic Diagnostics" tab to check if specific topics exist
+3. Use the "Quick Fixes" tab to run automatic repair scripts
+4. For more advanced fixes, run the SQL scripts from the `/sql` directory in your Supabase SQL Editor:
+   - Run the `fix-forum-profiles.sql` script to fix profile relationships
+   - Run the `forum-diagnostic-functions.sql` script to enable in-app fixes
+5. Return to the Forum page and try viewing topics again
 
 ## Common Issues & Solutions
 
-### "Topic not found" after creating a topic
+### "Topic not found" when clicking on a topic
 
-This happens when the database schema has issues. To fix:
+This often happens due to missing user profiles or other relationship issues:
 
-1. Run the "Fix Existing Tables" SQL script
-2. If that doesn't work, run the full "Setup Tables" SQL script
+1. Use the Forum Diagnostics tool to check if the topic exists
+2. Run the "Fix Profile Relationships" option in the diagnostics page
+3. If that doesn't work, run the `fix-forum-profiles.sql` script from the `/sql` directory in your Supabase SQL Editor
 
 ### No topics or categories showing on forum page
 
 Possible causes:
 
-1. **Missing tables**: Run the "Setup Tables" SQL script
-2. **No data**: Create sample data using the "Create Sample Data" button on the Debug page
-3. **Column name mismatch**: Run the "Fix Existing Tables" SQL script
+1. **Missing tables**: Go to the Forum Debug page (`/forum/debug`) to create necessary tables
+2. **Missing profiles**: Run the profile fix script
+3. **No data**: Create sample data using the "Create Sample Data" button on the Debug page
+4. **Column name mismatch**: Run the "Fix Existing Tables" SQL script
 
 ### Error about "name_ar" column not existing
 

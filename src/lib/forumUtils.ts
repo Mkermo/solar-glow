@@ -1,5 +1,8 @@
 import { supabase } from './supabase';
 
+// Cache for view count column name
+let viewCountColumnCache = null;
+
 // Function to increment view count for a topic
 export const incrementTopicViewCount = async (topicId: string) => {
   if (!topicId) return;
@@ -7,26 +10,78 @@ export const incrementTopicViewCount = async (topicId: string) => {
   try {
     console.log(`Incrementing view count for topic ${topicId}`);
     
-    // First check if view_count column exists, otherwise use views
-    const { data: columnCheck, error: columnError } = await supabase
-      .rpc('get_table_columns', { table_name: 'forum_topics' })
-      .select();
-      
-    const viewCountColumn = columnCheck?.some((col: any) => col.column_name === 'view_count')
-      ? 'view_count'
-      : 'views';
+    // Ensure we have a valid session before proceeding
+    const { data: sessionData } = await supabase.auth.getSession();
+    if (!sessionData.session) {
+      console.log('No active session for view count increment - continuing as anonymous');
+    }
+    
+    // Use cached column name or get it from schema adapter
+    let viewCountColumn = viewCountColumnCache;
+    
+    if (!viewCountColumn) {
+      try {
+        const { adaptToDatabaseSchema } = await import('./schemaAdapter');
+        const schemaInfo = await adaptToDatabaseSchema();
+        viewCountColumn = schemaInfo.viewCountField;
+        viewCountColumnCache = viewCountColumn;
+      } catch (err) {
+        // Default to view_count if schema adapter fails
+        viewCountColumn = 'view_count';
+      }
+    }
     
     console.log(`Using ${viewCountColumn} column for view counts`);
     
-    // Get the current view count
-    const { data: topic, error: fetchError } = await supabase
-      .from('forum_topics')
-      .select(viewCountColumn)
-      .eq('id', topicId)
-      .single();
+    // Try using RPC for view count increment if available
+    try {
+      // Attempt to use a server-side function for better performance and reliability
+      const { data: rpcResult, error: rpcError } = await supabase.rpc('increment_topic_view', { 
+        topic_id: topicId 
+      });
       
-    if (fetchError) {
-      console.error('Error fetching topic view count:', fetchError);
+      // If RPC succeeded, return the new count
+      if (!rpcError && rpcResult) {
+        console.log(`View count incremented via RPC to ${rpcResult}`);
+        return rpcResult;
+      }
+      
+      // If RPC failed or doesn't exist, fall back to manual update
+      console.log('Falling back to direct update for view count');
+    } catch (err) {
+      console.log('RPC not available, using direct update');
+    }
+    
+    // Get the current view count with retry
+    let attempt = 0;
+    let topic = null;
+    let fetchError = null;
+    
+    while (attempt < 3 && !topic) {
+      try {
+        const result = await supabase
+          .from('forum_topics')
+          .select(viewCountColumn)
+          .eq('id', topicId)
+          .single();
+          
+        topic = result.data;
+        fetchError = result.error;
+        
+        if (fetchError) {
+          console.error(`Error fetching topic view count (attempt ${attempt + 1}):`, fetchError);
+          attempt++;
+        } else {
+          break;
+        }
+      } catch (err) {
+        console.error(`Unexpected error in view count fetch (attempt ${attempt + 1}):`, err);
+        attempt++;
+      }
+    }
+    
+    if (!topic) {
+      console.error('Failed to fetch topic after multiple attempts');
       return;
     }
     
