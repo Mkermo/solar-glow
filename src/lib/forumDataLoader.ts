@@ -1,5 +1,4 @@
 import { supabase } from './supabase';
-import { getViewCountColumnName } from './schemaAdapter';
 
 // Interface definitions
 interface Category {
@@ -57,33 +56,10 @@ const CACHE_TIMEOUT = 5 * 60 * 1000;
 
 // Function to check and initialize required database functions
 export async function checkDatabaseFunctions() {
+  // Fast path: skip heavy RPC existence checks on client
   if (cache.initChecked) return true;
-
-  try {
-    console.log('Checking database functions...');
-    
-    // Check if the get_table_columns function exists
-    const { data: functionData, error: functionError } = await supabase
-      .rpc('get_table_columns', { table_name: 'forum_topics' });
-    
-    if (functionError) {
-      console.error('Database function check failed:', functionError);
-      
-      // Try to create the function from SQL files
-      const { error: createError } = await supabase.rpc('create_missing_profiles');
-      
-      if (createError) {
-        console.error('Could not call create_missing_profiles function:', createError);
-        return false;
-      }
-    }
-    
-    cache.initChecked = true;
-    return true;
-  } catch (err) {
-    console.error('Error in checkDatabaseFunctions:', err);
-    return false;
-  }
+  cache.initChecked = true;
+  return true;
 }
 
 // Function to fetch forum categories
@@ -151,42 +127,42 @@ export async function fetchPopularTopics(limit = 10) {
   }
   
   try {
-    // Get the correct view count column name
-    const viewCountColumn = await getViewCountColumnName();
-    
-    console.log(`Fetching popular topics using ${viewCountColumn}...`);
-    const { data, error } = await supabase
+    // Try view_count first
+    let { data, error } = await supabase
       .from('forum_topics')
       .select('*')
-      .order(viewCountColumn, { ascending: false })
+      .order('view_count', { ascending: false })
       .limit(limit);
-      
+
     if (error) {
-      console.error(`Error fetching popular topics with ${viewCountColumn}:`, error);
-      
-      // Fallback to created_at if there's an error
-      const { data: fallbackData } = await supabase
+      // Try views as fallback
+      const alt = await supabase
+        .from('forum_topics')
+        .select('*')
+        .order('views', { ascending: false })
+        .limit(limit);
+
+      data = alt.data;
+      error = alt.error as any;
+    }
+
+    if (error) {
+      // Final fallback to created_at
+      const fb = await supabase
         .from('forum_topics')
         .select('*')
         .order('created_at', { ascending: false })
         .limit(limit);
-        
-      // Update cache
-      cache.popularTopics = fallbackData;
+      cache.popularTopics = fb.data;
       cache.lastFetch = now;
-      
-      return fallbackData;
+      return fb.data;
     }
-    
-    // Update cache
+
     cache.popularTopics = data;
     cache.lastFetch = now;
-    
     return data;
   } catch (err) {
     console.error('Error in fetchPopularTopics:', err);
-    
-    // Fallback to recent topics
     const recentTopics = await fetchRecentTopics(limit);
     cache.popularTopics = recentTopics;
     return recentTopics;

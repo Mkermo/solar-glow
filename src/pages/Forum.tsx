@@ -59,7 +59,7 @@ const Forum = () => {
     
     async function fetchForumData() {
       setLoading(true);
-      
+
       // Set a timeout to prevent infinite loading
       timeoutId = setTimeout(() => {
         if (isMounted) {
@@ -67,34 +67,38 @@ const Forum = () => {
           setLoading(false);
         }
       }, 10000); // 10 second timeout
-      
+
       try {
         console.log('Fetching forum data with optimized loading...');
-        
-        // First ensure database setup is complete
-        const dbSetup = await ensureForumDbSetup();
-        if (!dbSetup.success) {
-          console.warn('Forum database setup issue:', dbSetup.message);
-        }
-        
-        // Get the direct categories data first as a fallback
+
+        // Kick off DB setup in background; do not block UI
+        (async () => {
+          try {
+            const dbSetup = await ensureForumDbSetup();
+            if (!dbSetup.success) {
+              console.warn('Forum database setup issue:', dbSetup.message);
+            }
+          } catch (e) {
+            console.warn('ensureForumDbSetup failed (ignored for UI):', e);
+          }
+        })();
+
+        // Get the direct categories data first as a quick fallback for immediate render
         const { data: fallbackCategories } = await supabase
           .from('forum_categories')
           .select('*')
           .order('name', { ascending: true });
-          
+
         if (fallbackCategories && fallbackCategories.length > 0 && isMounted) {
           setCategories(fallbackCategories);
         }
-        
-        // Use the optimized forum data loader
+
+        // Load enhanced forum data in parallel (handles its own fallbacks)
         try {
           const { loadForumData } = await import('@/lib/forumDataLoader');
           const forumData = await loadForumData();
-          
-          // Only update state if component is still mounted
+
           if (isMounted) {
-            // Set state with the optimized data
             setCategories(forumData.categories);
             setRecentTopics(forumData.recentTopics);
             setPopularTopics(forumData.popularTopics);
@@ -107,7 +111,6 @@ const Forum = () => {
       } catch (error) {
         console.error('Error in fetchForumData:', error);
       } finally {
-        // Clear the timeout and set loading to false
         clearTimeout(timeoutId);
         if (isMounted) {
           setLoading(false);

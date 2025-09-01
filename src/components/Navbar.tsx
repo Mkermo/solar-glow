@@ -113,6 +113,11 @@ const Navbar = () => {
             <span>{t("Forum", "المنتدى")}</span>
           </Link>
           
+          <Link to="/solar-assistant" className="hover:text-primary transition-colors flex items-center gap-1">
+            <Sun className="h-4 w-4" />
+            <span>{t("Solar Assistant", "مساعد الطاقة الشمسية")}</span>
+          </Link>
+          
           <Link to="/contact" className="hover:text-primary transition-colors flex items-center gap-1">
             <Mail className="h-4 w-4" />
             <span>{t("Contact", "اتصل بنا")}</span>

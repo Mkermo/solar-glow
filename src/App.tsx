@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { CartProvider } from "@/contexts/CartContext";
 import { AuthProvider } from "@/contexts/AuthContext"; // Remove ProtectedRoute from here
 import { LanguageProvider } from "@/contexts/LanguageContext";
+import { SolarAssistantProvider } from "@/contexts/SolarAssistantContext";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -46,6 +47,7 @@ import ProductManagement from "./pages/Dashboard/ProductManagement";
 import ProductEdit from "./pages/ProductEdit";
 import AddProduct from "./pages/AddProduct";
 import Unauthorized from "./pages/Unauthorized";
+import SolarAssistant from "./pages/SolarAssistant";
 
 const queryClient = new QueryClient();
 
@@ -106,6 +108,7 @@ function App() {
                     <Route path="/faqs" element={<FAQs />} />
                     <Route path="/return-refund" element={<ReturnRefund />} />
                     <Route path="/terms" element={<TermsOfService />} />
+                    <Route path="/solar-assistant" element={<SolarAssistant />} />
                     
                     {/* Protected Admin Routes */}
                     <Route 

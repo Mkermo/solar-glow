@@ -25,7 +25,30 @@ const Index = () => {
     .slice(0, 2);
 
   useEffect(() => {
-    fetchFeaturedProducts();
+    let isMounted = true;
+    let timeoutId: any;
+
+    // Safety timeout so UI never hangs forever
+    timeoutId = setTimeout(() => {
+      if (isMounted) {
+        console.warn('Home page load timed out. Showing fallback UI.');
+        setLoading(false);
+        setError((prev) => prev ?? new Error('Loading timed out'));
+      }
+    }, 10000); // 10s
+
+    fetchFeaturedProducts()
+      .catch((err) => {
+        console.error('fetchFeaturedProducts failed:', err);
+      })
+      .finally(() => {
+        clearTimeout(timeoutId);
+      });
+
+    return () => {
+      isMounted = false;
+      clearTimeout(timeoutId);
+    };
   }, []);
 
   const fetchFeaturedProducts = async () => {

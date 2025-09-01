@@ -9,7 +9,7 @@ const ForumPathFixer = () => {
   const [diagnosticResults, setDiagnosticResults] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
-  
+
   const runDiagnostics = async () => {
     setLoading(true);
     try {
@@ -21,28 +21,25 @@ const ForumPathFixer = () => {
       setLoading(false);
     }
   };
-  
+
   const createSampleCategory = async () => {
     try {
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from('forum_categories')
         .insert([
           {
             name: 'General Discussion',
-            description: 'General topics related to solar energy',
-            name_ar: 'مناقشة عامة',
-            description_ar: 'مواضيع عامة تتعلق بالطاقة الشمسية'
+            description: 'General topics related to solar energy'
           }
-        ])
-        .select();
-      
+        ]);
+
       if (error) throw error;
-      
+
       toast({
         title: 'Success',
         description: 'Created sample category',
       });
-      
+
       runDiagnostics();
     } catch (error) {
       console.error('Error creating sample category:', error);
@@ -53,7 +50,7 @@ const ForumPathFixer = () => {
       });
     }
   };
-  
+
   const createSampleTopic = async () => {
     try {
       // Find a category to attach to
@@ -61,7 +58,7 @@ const ForumPathFixer = () => {
         .from('forum_categories')
         .select('id')
         .limit(1);
-      
+
       if (!categories || categories.length === 0) {
         toast({
           title: 'No Categories',
@@ -70,13 +67,13 @@ const ForumPathFixer = () => {
         });
         return;
       }
-      
+
       // Get current user or use anonymous
       const { data: { user } } = await supabase.auth.getUser();
       const userId = user?.id || '00000000-0000-0000-0000-000000000000';
-      
+
       // Create topic
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from('forum_topics')
         .insert([
           {
@@ -85,16 +82,15 @@ const ForumPathFixer = () => {
             user_id: userId,
             category_id: categories[0].id
           }
-        ])
-        .select();
-      
+        ]);
+
       if (error) throw error;
-      
+
       toast({
         title: 'Success',
         description: 'Created sample topic',
       });
-      
+
       runDiagnostics();
     } catch (error) {
       console.error('Error creating sample topic:', error);
@@ -109,7 +105,7 @@ const ForumPathFixer = () => {
   useEffect(() => {
     runDiagnostics();
   }, []);
-  
+
   return (
     <Card>
       <CardHeader>
@@ -128,11 +124,11 @@ const ForumPathFixer = () => {
               Create Sample Topic
             </Button>
           </div>
-          
+
           {diagnosticResults && (
             <div className="space-y-4 text-sm">
               <h3 className="font-medium text-base">Diagnostic Results:</h3>
-              
+
               <div>
                 <h4 className="font-medium">Tables:</h4>
                 <ul className="list-disc pl-5">
@@ -141,13 +137,13 @@ const ForumPathFixer = () => {
                       {tableName}: {info.exists ? (
                         <span className="text-green-600">{info.count} rows</span>
                       ) : (
-                        <span className="text-red-600">Not found - {info.error}</span>
+                        <span className="text-red-600">Not found{info.error ? ` - ${info.error}` : ''}</span>
                       )}
                     </li>
                   ))}
                 </ul>
               </div>
-              
+
               <div>
                 <h4 className="font-medium">Functions:</h4>
                 <ul className="list-disc pl-5">
@@ -156,13 +152,13 @@ const ForumPathFixer = () => {
                       {functionName}: {info.exists ? (
                         <span className="text-green-600">Available</span>
                       ) : (
-                        <span className="text-red-600">Not found - {info.error}</span>
+                        <span className="text-red-600">Not found{info.error ? ` - ${info.error}` : ''}</span>
                       )}
                     </li>
                   ))}
                 </ul>
               </div>
-              
+
               {diagnosticResults.sampleData?.topics?.data?.length > 0 && (
                 <div>
                   <h4 className="font-medium">Sample Topics:</h4>
@@ -184,3 +180,4 @@ const ForumPathFixer = () => {
 };
 
 export default ForumPathFixer;
+
