@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
@@ -32,6 +32,8 @@ export function ProductImageUpload({
   const [dialogOpen, setDialogOpen] = useState(false);
   const [imageUrl, setImageUrl] = useState('');
   const { toast } = useToast();
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const directFileInputRef = useRef<HTMLInputElement | null>(null);
   
   // Create a unique ID for each input to avoid conflicts
   const inputId = `imageUpload-${productId}`;
@@ -173,10 +175,10 @@ export function ProductImageUpload({
   return (
     <div className="flex items-center gap-4">
       <div className="w-32 h-32 border rounded-lg overflow-hidden bg-gray-50">
-        <img 
-          src={currentImageUrl || '/placeholder.svg'} 
-          alt="Product" 
-          className="w-full h-full object-cover"
+        <img
+          src={currentImageUrl || '/placeholder.svg'}
+          alt="Product"
+          className="w-full h-full object-contain"
           onError={(e) => {
             const target = e.target as HTMLImageElement;
             target.src = '/placeholder.svg';
@@ -223,6 +225,7 @@ export function ProductImageUpload({
                     <Upload className="h-10 w-10 text-gray-400" />
                     <p className="text-sm text-gray-500">Upload an image file</p>
                     <input
+                      ref={fileInputRef}
                       type="file"
                       id={inputId}
                       name={inputId}
@@ -231,16 +234,15 @@ export function ProductImageUpload({
                       onChange={handleImageUpload}
                       disabled={uploading}
                     />
-                    <label htmlFor={inputId}>
-                      <Button 
-                        type="button"
-                        variant="secondary" 
-                        disabled={uploading}
-                        className="cursor-pointer"
-                      >
-                        Browse Files
-                      </Button>
-                    </label>
+                    <Button 
+                      type="button"
+                      variant="secondary" 
+                      disabled={uploading}
+                      className="cursor-pointer"
+                      onClick={() => fileInputRef.current?.click()}
+                    >
+                      Browse Files
+                    </Button>
                   </div>
                 </TabsContent>
                 
@@ -272,6 +274,7 @@ export function ProductImageUpload({
           {/* Keep the original file input for compatibility */}
           <div className="hidden">
             <input
+              ref={directFileInputRef}
               type="file"
               id={`direct-${inputId}`}
               name={`direct-${inputId}`}
@@ -280,17 +283,16 @@ export function ProductImageUpload({
               onChange={handleImageUpload}
               disabled={uploading}
             />
-            <label htmlFor={`direct-${inputId}`}>
-              <Button 
-                type="button"
-                variant="outline" 
-                size="sm"
-                disabled={uploading}
-                className="cursor-pointer w-full"
-              >
-                Upload File Directly
-              </Button>
-            </label>
+            <Button 
+              type="button"
+              variant="outline" 
+              size="sm"
+              disabled={uploading}
+              className="cursor-pointer w-full"
+              onClick={() => directFileInputRef.current?.click()}
+            >
+              Upload File Directly
+            </Button>
           </div>
         </div>
       )}

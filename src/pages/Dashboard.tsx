@@ -159,11 +159,13 @@ export default function Dashboard() {
                 >
                   <div className="flex justify-between items-center">
                     <div className="flex items-center gap-4">
-                      <img 
-                        src={product.image_url} 
-                        alt={product.name}
-                        className="w-16 h-16 object-cover rounded"
-                      />
+                      <div className="w-16 h-16 rounded bg-gray-100 flex items-center justify-center overflow-hidden">
+                        <img
+                          src={product.image_url}
+                          alt={product.name}
+                          className="max-h-full max-w-full object-contain"
+                        />
+                      </div>
                       <div>
                         <h3 className="font-medium">{product.name}</h3>
                         <p className="text-sm text-gray-500">
@@ -183,20 +185,27 @@ export default function Dashboard() {
                         {product.is_hidden ? 'Show' : 'Hide'}
                       </Button>
 
-                      <label className="cursor-pointer inline-block">
-                        <input
-                          type="file"
-                          className="hidden"
-                          accept="image/*"
-                          onChange={(e) => {
-                            const file = e.target.files?.[0];
-                            if (file) handleImageUpload(product.id, file);
-                          }}
-                        />
-                        <Button variant="outline" type="button">
-                          Change Photo
-                        </Button>
-                      </label>
+                      <input
+                        id={`product-image-${product.id}`}
+                        type="file"
+                        className="hidden"
+                        accept="image/*"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) handleImageUpload(product.id, file);
+                        }}
+                      />
+                      <Button
+                        variant="outline"
+                        type="button"
+                        onClick={() =>
+                          document
+                            .getElementById(`product-image-${product.id}`)
+                            ?.click()
+                        }
+                      >
+                        Change Photo
+                      </Button>
 
                       <Button
                         variant="default"

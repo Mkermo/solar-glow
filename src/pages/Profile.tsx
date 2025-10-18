@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,7 @@ export default function Profile() {
   const [fullName, setFullName] = useState("");
   const [avatar, setAvatar] = useState<File | null>(null);
   const [avatarUrl, setAvatarUrl] = useState("");
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -113,23 +114,26 @@ export default function Profile() {
             alt="Profile" 
             className="w-20 h-20 rounded-full object-cover"
           />
-          <label className="cursor-pointer">
-            <Input
-              type="file"
-              className="hidden"
-              accept="image/*"
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (file) {
-                  setAvatar(file);
-                  setAvatarUrl(URL.createObjectURL(file));
-                }
-              }}
-            />
-            <Button variant="outline" type="button">
-              Change Photo
-            </Button>
-          </label>
+          <Input
+            ref={fileInputRef}
+            type="file"
+            className="hidden"
+            accept="image/*"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) {
+                setAvatar(file);
+                setAvatarUrl(URL.createObjectURL(file));
+              }
+            }}
+          />
+          <Button
+            variant="outline"
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+          >
+            Change Photo
+          </Button>
         </div>
 
         <div>

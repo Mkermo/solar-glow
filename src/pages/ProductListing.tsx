@@ -444,11 +444,11 @@ const ProductListing = () => {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
               {filteredProducts.map((product) => (
                 <div key={product.id} className="bg-white rounded-lg shadow-md overflow-hidden">
-                  <div className="aspect-square bg-gray-100 relative">
+                  <div className="aspect-square bg-gray-100 relative flex items-center justify-center overflow-hidden">
                     <img
                       src={product.image_url || '/placeholder.svg'}
                       alt={product.name}
-                      className="object-cover w-full h-full p-6"
+                      className="max-h-full max-w-full object-contain p-6"
                       onError={(e) => {
                         const target = e.target as HTMLImageElement;
                         target.src = '/placeholder.svg';
