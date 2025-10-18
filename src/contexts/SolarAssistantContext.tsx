@@ -1,7 +1,17 @@
-import React, { createContext, useState, useContext, useEffect, ReactNode, useRef } from 'react';
+import React, {
+  createContext,
+  useState,
+  useContext,
+  useEffect,
+  ReactNode,
+  useRef,
+  useMemo,
+  useCallback,
+} from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { getAIResponse, type AIMessage } from '@/services/aiService';
+import { useAuth } from '@/contexts/AuthContext';
 
 type Message = {
   id: string;
@@ -23,54 +33,91 @@ const SolarAssistantContext = createContext<SolarAssistantContextType | undefine
 
 export const SolarAssistantProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const { lang, t } = useLanguage();
+  const { user } = useAuth();
 
-  const initialMessage = t(
-    "Hello! I'm your Solar Assistant. How can I help with your solar energy questions today?",
-    "مرحباً! أنا مساعدك للطاقة الشمسية. كيف يمكنني مساعدتك اليوم في أسئلتك حول الطاقة الشمسية؟"
+  const initialMessage = useMemo(
+    () =>
+      t(
+        "Hello! I'm your Solar Assistant. How can I help with your solar energy questions today?",
+        "مرحباً! أنا مساعدك للطاقة الشمسية. كيف يمكنني مساعدتك اليوم في أسئلتك حول الطاقة الشمسية؟"
+      ),
+    [t]
   );
 
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: uuidv4(),
-      role: 'assistant',
-      content: initialMessage,
-      timestamp: new Date(),
-    },
-  ]);
+  const buildInitialMessages = useCallback(
+    (): Message[] => [
+      {
+        id: uuidv4(),
+        role: 'assistant',
+        content: initialMessage,
+        timestamp: new Date(),
+      },
+    ],
+    [initialMessage]
+  );
+
+  const [messages, setMessages] = useState<Message[]>(buildInitialMessages);
   const [isTyping, setIsTyping] = useState<boolean>(false);
   const [showCalculator, setShowCalculator] = useState<boolean>(false);
   const inFlightController = useRef<AbortController | null>(null);
 
-  // Save messages to local storage
-  useEffect(() => {
-    if (messages.length > 1) {
-      const trimmed = messages.slice(-100); // keep last 100 messages
-      localStorage.setItem('solarAssistantMessages', JSON.stringify(trimmed));
-    }
-  }, [messages]);
+  const storageKey = useMemo(() => {
+    const suffix = user?.id ? user.id : 'guest';
+    return `solarAssistantMessages_${suffix}`;
+  }, [user?.id]);
 
-  // Load messages from local storage
+  const getSessionStore = useCallback(() => {
+    if (typeof window === 'undefined') return null;
+    try {
+      return window.sessionStorage;
+    } catch (error) {
+      console.warn('Session storage unavailable:', error);
+      return null;
+    }
+  }, []);
+
+  // Keep session storage up to date with the latest messages
   useEffect(() => {
-    const savedMessages = localStorage.getItem('solarAssistantMessages');
+    const storage = getSessionStore();
+    if (!storage) return;
+
+    if (messages.length > 1) {
+      const trimmed = messages.slice(-100);
+      storage.setItem(storageKey, JSON.stringify(trimmed));
+    } else if (messages.length === 1 && messages[0].role === 'assistant') {
+      storage.removeItem(storageKey);
+    }
+  }, [messages, storageKey, getSessionStore]);
+
+  // Restore messages for the active user/session
+  useEffect(() => {
+    const storage = getSessionStore();
+    if (!storage) {
+      setMessages(buildInitialMessages());
+      return;
+    }
+
+    const savedMessages = storage.getItem(storageKey);
     if (savedMessages) {
       try {
         const parsedMessages = JSON.parse(savedMessages);
-        // Convert string timestamps back to Date objects
-        const messagesWithDateObjects = parsedMessages.map((msg: any) => ({
+        const messagesWithDates = parsedMessages.map((msg: any) => ({
           ...msg,
-          timestamp: new Date(msg.timestamp)
+          timestamp: new Date(msg.timestamp),
         }));
-        setMessages(messagesWithDateObjects);
+        setMessages(messagesWithDates);
+        return;
       } catch (error) {
         console.error('Error parsing saved messages:', error);
       }
     }
-  }, []);
+
+    setMessages(buildInitialMessages());
+  }, [storageKey, buildInitialMessages, getSessionStore]);
 
   const sendMessage = (content: string) => {
     if (!content.trim()) return;
 
-    // Add user message
     const userMessage: Message = {
       id: uuidv4(),
       role: 'user',
@@ -80,7 +127,6 @@ export const SolarAssistantProvider: React.FC<{ children: ReactNode }> = ({ chil
 
     setMessages((prev) => [...prev, userMessage]);
 
-    // Cancel any in-flight request
     if (inFlightController.current) {
       inFlightController.current.abort();
     }
@@ -89,7 +135,6 @@ export const SolarAssistantProvider: React.FC<{ children: ReactNode }> = ({ chil
     inFlightController.current = controller;
     setIsTyping(true);
 
-    // Prepare short history for context
     const history: AIMessage[] = messages.slice(-8).map((m) => ({ role: m.role, content: m.content }));
 
     getAIResponse(content, history, { language: lang, abortSignal: controller.signal })
@@ -97,18 +142,23 @@ export const SolarAssistantProvider: React.FC<{ children: ReactNode }> = ({ chil
         const assistantMessage: Message = {
           id: uuidv4(),
           role: 'assistant',
-          content: aiResponse || t('Sorry, I could not generate a response.', 'عذراً، لم أتمكن من إنشاء إجابة.'),
+          content:
+            aiResponse ||
+            t('Sorry, I could not generate a response.', 'عذراً، لم أتمكن من إنشاء إجابة.'),
           timestamp: new Date(),
         };
         setMessages((prev) => [...prev, assistantMessage]);
       })
       .catch((err) => {
-        if ((err as any)?.name === 'AbortError') return; // Ignore aborted
+        if ((err as any)?.name === 'AbortError') return;
         console.error('AI error:', err);
         const assistantMessage: Message = {
           id: uuidv4(),
           role: 'assistant',
-          content: t('There was an issue answering. Please try again.', 'حدثت مشكلة أثناء الإجابة. يرجى المحاولة مرة أخرى.'),
+          content: t(
+            'There was an issue answering. Please try again.',
+            'حدثت مشكلة أثناء الإجابة. يرجى المحاولة مرة أخرى.'
+          ),
           timestamp: new Date(),
         };
         setMessages((prev) => [...prev, assistantMessage]);
@@ -122,20 +172,11 @@ export const SolarAssistantProvider: React.FC<{ children: ReactNode }> = ({ chil
   };
 
   const clearMessages = () => {
-    const initialMessage = t(
-      "Hello! I'm your Solar Assistant. How can I help with your solar energy questions today?",
-      "مرحباً! أنا مساعدك للطاقة الشمسية. كيف يمكنني مساعدتك اليوم في أسئلتك حول الطاقة الشمسية؟"
-    );
-
-    setMessages([
-      {
-        id: uuidv4(),
-        role: 'assistant',
-        content: initialMessage,
-        timestamp: new Date(),
-      },
-    ]);
-    localStorage.removeItem('solarAssistantMessages');
+    setMessages(buildInitialMessages());
+    const storage = getSessionStore();
+    if (storage) {
+      storage.removeItem(storageKey);
+    }
   };
 
   const toggleCalculator = () => {

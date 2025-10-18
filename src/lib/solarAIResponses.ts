@@ -26,6 +26,9 @@ export function generateSolarAIResponse(userMessage: string, previousMessages: a
   const offGridKeywordsEn = ['off-grid', 'grid tie', 'standalone'];
   // Add wiring keywords in English
   const wiringKeywordsEn = ['connect', 'connecting', 'wiring', 'wire', 'connection', 'setup', 'amp', 'amps', 'watt', 'watts'];
+  const seriesKeywordsEn = ['series', 'in series', 'series connection'];
+  const parallelKeywordsEn = ['parallel', 'in parallel', 'parallel connection'];
+  const mathTriggersEn = ['calculate', 'calculation', 'what is', 'solve', 'math', 'result'];
   
   // Arabic keywords
   const panelTypeKeywordsAr = ['نوع اللوح', 'أنواع الألواح', 'أحادي البلورية', 'متعدد البلورية', 'الفيلم الرقيق'];
@@ -39,6 +42,9 @@ export function generateSolarAIResponse(userMessage: string, previousMessages: a
   const lifespanKeywordsAr = ['عمر', 'ضمان', 'كم يستمر', 'يدوم'];
   const offGridKeywordsAr = ['خارج الشبكة', 'متصل بالشبكة', 'مستقل'];
   // Add wiring keywords in Arabic
+  const seriesKeywordsAr = ['التوصيل على التوالي', 'على التوالي', 'متسلسل'];
+  const parallelKeywordsAr = ['التوصيل على التوازي', 'على التوازي', 'متوازي'];
+  const mathTriggersAr = ['احسب', 'ما هو', 'كم يساوي', 'النتيجة', 'حساب', 'معادلة'];
   const wiringKeywordsAr = ['اشبك', 'توصيل', 'اوصل', 'شبك', 'وصلة', 'توصيلات', 'خليتين', 'خلية', 'وات', 'امبير'];
   
   // Check keywords in the appropriate language
@@ -53,6 +59,9 @@ export function generateSolarAIResponse(userMessage: string, previousMessages: a
   const lifespanKeywords = isArabic ? lifespanKeywordsAr : lifespanKeywordsEn;
   const offGridKeywords = isArabic ? offGridKeywordsAr : offGridKeywordsEn;
   const wiringKeywords = isArabic ? wiringKeywordsAr : wiringKeywordsEn;
+  const seriesKeywords = isArabic ? seriesKeywordsAr : seriesKeywordsEn;
+  const parallelKeywords = isArabic ? parallelKeywordsAr : parallelKeywordsEn;
+  const mathTriggers = isArabic ? mathTriggersAr : mathTriggersEn;
 
   const greetingKeywordsEn = ['hello', 'hi', 'hi there', 'hey', 'good morning', 'good afternoon', 'good evening', 'greetings'];
   const greetingKeywordsAr = ['مرحبا', 'مرحباً', 'اهلا', 'أهلاً', 'أهلا وسهلا', 'السلام عليكم', 'صباح الخير', 'مساء الخير'];
@@ -69,6 +78,87 @@ export function generateSolarAIResponse(userMessage: string, previousMessages: a
 
   // Check if query includes any keywords from the arrays
   const includesAny = (arr: string[]) => arr.some(keyword => query.includes(keyword));
+
+  const wattageMatches = Array.from(query.matchAll(/(\d+(?:\.\d+)?)\s*(?:w|watts?)/g)).map(match => parseFloat(match[1]));
+  const mentionsSeries = seriesKeywords.some(keyword => query.includes(keyword));
+  const mentionsParallel = parallelKeywords.some(keyword => query.includes(keyword));
+
+  if (wattageMatches.length >= 2 && mentionsSeries) {
+    const sortedWatts = [...wattageMatches].sort((a, b) => b - a);
+    const largest = sortedWatts[0];
+    const smallest = sortedWatts[sortedWatts.length - 1];
+    const largestLabel = Number.isFinite(largest) ? Math.round(largest) : wattageMatches[0];
+    const smallestLabel = Number.isFinite(smallest) ? Math.round(smallest) : wattageMatches[wattageMatches.length - 1];
+
+    if (isArabic) {
+      return `عند توصيل لوحة ${largestLabel} واط مع لوحة ${smallestLabel} واط على التوالي، يرتفع الجهد لكن التيار يبقى محدوداً باللوحة الأصغر. لذلك سيكون إنتاج السلسلة قريباً من قدرة ${smallestLabel} واط، ولن تتمكن لوحة ${largestLabel} واط من الوصول لقدرتها الاسمية. استخدم ألواحاً متطابقة في السلسلة نفسها، أو ضع كل لوحة على مدخل MPPT مستقل، أو وصّلها على التوازي إذا كان المتحكم يسمح بالتيار المتجمع.`;
+    }
+
+    return `When you wire ${largestLabel} W and ${smallestLabel} W panels in series, the voltages add but the string current is capped by the smaller panel. That keeps total power close to the ${smallestLabel} W module, so the ${largestLabel} W panel never delivers its rated output. Use matching panels in one series string, separate MPPT inputs, or a parallel connection (if your controller can handle the combined current).`;
+  }
+
+  if (wattageMatches.length >= 2 && mentionsParallel) {
+    const sortedWatts = [...wattageMatches].sort((a, b) => b - a);
+    const largest = sortedWatts[0];
+    const smallest = sortedWatts[sortedWatts.length - 1];
+    const largestLabel = Number.isFinite(largest) ? Math.round(largest) : wattageMatches[0];
+    const smallestLabel = Number.isFinite(smallest) ? Math.round(smallest) : wattageMatches[wattageMatches.length - 1];
+    const combined = Math.round(wattageMatches.reduce((sum, value) => sum + (Number.isFinite(value) ? value : 0), 0));
+
+    if (isArabic) {
+      return `عند توصيل الألواح على التوازي يبقى الجهد ثابتاً بينما يتجمع التيار. يمكن لكل لوحة ${largestLabel} واط و${smallestLabel} واط أن تعمل أقرب إلى قدرتها الاسمية إذا كان الجهد متطابقاً، لكن عليك التأكد من أن المتحكم يتحمل تياراً مساوياً للمجموع (حوالي ${combined} واط على نفس الجهد). استخدم منصهرات أو مفاتيح حماية لكل فرع لتأمين النظام.`;
+    }
+
+    return `In a parallel connection the voltage stays the same and the currents add. A ${largestLabel} W panel and a ${smallestLabel} W panel can each run closer to their own power if their voltages match, but your charge controller must handle the combined current (roughly ${combined} W at the array voltage). Add fuses or breakers on each branch and keep panel specs within the controller limits.`;
+  }
+
+  let mathExpression: string | null = null;
+  const mathPromptEn = query.match(/(?:what\s+is|calculate|solve|result\s+of)\s+([0-9\.\s\+\-\*\/\(\)]+)/);
+  if (mathPromptEn) {
+    mathExpression = mathPromptEn[1];
+  } else if (isArabic) {
+    const mathPromptAr = query.match(/(?:كم|ما\s+هو|احسب)\s+([0-9\.\s\+\-\*\/\(\)]+)/);
+    if (mathPromptAr) {
+      mathExpression = mathPromptAr[1];
+    }
+  }
+
+  const simpleMathPattern = /^[0-9\.\s\+\-\*\/\(\)]+$/;
+  if (!mathExpression && (mathTriggers.some(keyword => query.includes(keyword)) || simpleMathPattern.test(query.trim()))) {
+    if (simpleMathPattern.test(query.trim())) {
+      mathExpression = query.trim();
+    }
+  }
+
+  if (mathExpression) {
+    const sanitizedExpression = mathExpression.replace(/[^0-9+\-*/().\s]/g, '');
+    const normalizedExpression = sanitizedExpression.replace(/\s+/g, ' ').trim();
+
+    if (/[0-9]/.test(sanitizedExpression)) {
+      let result: number | null = null;
+      try {
+        const value = Function(`return (${sanitizedExpression});`)();
+        if (typeof value === 'number' && Number.isFinite(value)) {
+          result = value;
+        }
+      } catch (error) {
+        result = null;
+      }
+
+      if (result !== null) {
+        const formattedResult = Number.isInteger(result) ? result.toString() : Number(result.toFixed(4)).toString();
+        if (isArabic) {
+          return `نتيجة الحساب: ${normalizedExpression || sanitizedExpression} = ${formattedResult}. هذه المساعدة السريعة تغطي العمليات الأساسية فقط (+، -، *، /)، لذلك تحقق دائماً من حسابات النظام مع بيانات المتحكم وخسائر الأسلاك.`;
+        }
+        return `Calculation result: ${normalizedExpression || sanitizedExpression} = ${formattedResult}. This quick helper only covers basic +, -, *, / math, so double-check solar sizing against controller limits and expected efficiency losses.`;
+      }
+
+      if (isArabic) {
+        return 'لم أستطع حساب هذا التعبير. استخدم أرقاماً وعلامات + - * / فقط أو جزّئ السؤال إلى خطوات أبسط.';
+      }
+      return 'I could not evaluate that expression. Use only numbers and + - * /, or break the problem into smaller steps.';
+    }
+  }
   
   // Check for keywords to determine response type
   if (includesAny(wiringKeywords)) {
