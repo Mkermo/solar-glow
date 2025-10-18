@@ -1,43 +1,43 @@
 import { createClient } from '@supabase/supabase-js';
 
-/**
- * SINGLETON PATTERN: This ensures we only create one instance of the Supabase client
- * This prevents the "Multiple GoTrueClient instances detected" warning
- */
-let supabaseInstance = null;
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-const getSupabaseClient = () => {
-  if (supabaseInstance) return supabaseInstance;
-  
-  // Try to get from environment variables first
-  let supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-  let supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+if (!supabaseUrl) {
+  throw new Error('Missing VITE_SUPABASE_URL. Add it to your environment configuration.');
+}
 
-  // If environment variables are not available, use hardcoded values
-  if (!supabaseUrl || !supabaseKey) {
-    console.warn('Using fallback Supabase credentials. Environment variables not loaded properly.');
-    supabaseUrl = "https://ketesbnrumxbvwuaqefa.supabase.co";
-    supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtldGVzYm5ydW14YnZ3dWFxZWZhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY5NDg1ODcsImV4cCI6MjA2MjUyNDU4N30._E9BrV3rNrzz-cDvbUoyUkbcuhW-95rDANA2nnheEFc";
-  }
-  
-  // Create the client
-  supabaseInstance = createClient(supabaseUrl, supabaseKey);
-  return supabaseInstance;
-};
+if (!supabaseKey) {
+  throw new Error('Missing VITE_SUPABASE_ANON_KEY. Add it to your environment configuration.');
+}
 
-// Export a single instance of the Supabase client
-export const supabase = getSupabaseClient();
+// Create and export a single instance of the Supabase client
+export const supabase = createClient(supabaseUrl, supabaseKey, {
+  auth: {
+    autoRefreshToken: true,
+    persistSession: true,
+    detectSessionInUrl: false,
+  },
+  global: {
+    // Ensure we stay CSP friendly
+    fetch: (...args) => fetch(...args),
+  },
+});
+
+// Expose helpers for diagnostics (avoids leaking full anon key in logs)
+export const SUPABASE_URL = () => supabaseUrl;
+export const SUPABASE_ANON_KEY = () => `${supabaseKey.slice(0, 8)}...`;
 
 // Debug function to test connection
 export const testConnection = async () => {
   try {
-    const { data, error } = await supabase
+    const { error } = await supabase
       .from('products')
-      .select('id, name')
+      .select('id', { count: 'exact', head: true })
       .limit(1);
 
     if (error) throw error;
-    console.log('Supabase connection test:', data);
+    console.log('Supabase connection test succeeded');
     return true;
   } catch (err) {
     console.error('Supabase connection test failed:', err);
@@ -45,8 +45,46 @@ export const testConnection = async () => {
   }
 };
 
-// Run connection test
-testConnection();
+export const checkProductsTable = async () => {
+  try {
+    // First, check if the table exists using system tables
+    const { data: tableExists, error: tableError } = await supabase
+      .rpc('check_table_exists', { table_name: 'products' });
+
+    if (tableError) {
+      console.log('Could not run check_table_exists RPC, trying alternative check');
+
+      // Attempt to query the products table
+      const { error } = await supabase
+        .from('products')
+        .select('id', { count: 'exact', head: true })
+        .limit(1);
+
+      if (error) {
+        if (error.code === 'PGRST116') {
+          // Table doesn't exist (not found)
+          return { exists: false, reason: 'Table does not exist' };
+        }
+
+        if (error.code === '42501' || /permission/i.test(error.message ?? '') || /row-level security/i.test(error.message ?? '')) {
+          // Table exists but the current key is not allowed to access it
+          return { exists: true, reason: `Permission error: ${error.message}` };
+        }
+
+        return { exists: false, reason: error.message };
+      }
+
+      // If we got here, the table exists
+      return { exists: true };
+    }
+
+    // If the RPC worked, use its result
+    return { exists: !!tableExists };
+  } catch (err) {
+    console.error('Error checking products table:', err);
+    return { exists: false, reason: err instanceof Error ? err.message : 'Unknown error' };
+  }
+};
 
 export const checkSupabaseConnection = async () => {
   try {
@@ -66,7 +104,7 @@ export const checkSupabaseConnection = async () => {
   } catch (err) {
     console.error('Connection error:', {
       message: err instanceof Error ? err.message : 'Unknown error',
-      url: supabaseUrl
+      url: supabaseUrl ?? 'unknown'
     });
     
     return { 

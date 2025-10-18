@@ -1,10 +1,21 @@
 import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
-import { Sun, ArrowRight, Truck, Package, Check } from "lucide-react";
+import { Sun, ArrowRight, Truck, Package, Check, AlertTriangle } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import ScrollReveal from "@/components/ScrollReveal";
+import { DatabaseFunctionInitializer } from "@/components/DatabaseFunctionInitializer";
+import { products as staticProducts } from "@/data/products";
+import { supabaseRestSelect } from "@/lib/supabaseRest";
+
+const FALLBACK_PRODUCTS = staticProducts.map((product) => ({
+  id: product.id,
+  name: product.name,
+  description: product.description,
+  price: product.price,
+  category: product.category,
+  image_url: product.image ?? "/placeholder.svg",
+}));
 
 const Index = () => {
   const [loading, setLoading] = useState(true);
@@ -19,79 +30,126 @@ const Index = () => {
   const featuredPanels = products
     .filter(product => product.category === "panels")
     .slice(0, 2);
-  
+
   const featuredInverters = products
     .filter(product => product.category === "inverters")
     .slice(0, 2);
 
   useEffect(() => {
     let isMounted = true;
-    let timeoutId: any;
 
-    // Safety timeout so UI never hangs forever
-    timeoutId = setTimeout(() => {
-      if (isMounted) {
-        console.warn('Home page load timed out. Showing fallback UI.');
-        setLoading(false);
-        setError((prev) => prev ?? new Error('Loading timed out'));
+    const safetyTimeout = window.setTimeout(() => {
+      if (!isMounted) {
+        return;
       }
-    }, 10000); // 10s
 
-    fetchFeaturedProducts()
-      .catch((err) => {
-        console.error('fetchFeaturedProducts failed:', err);
-      })
-      .finally(() => {
-        clearTimeout(timeoutId);
-      });
+      console.warn('Home page product query timed out - showing fallback UI.');
+      setProducts((current) => (current && current.length ? current : FALLBACK_PRODUCTS));
+      setLoading(false);
+      setError((currentError) => currentError ?? new Error('Timed out while loading products from Supabase. Showing fallback catalog.'));
+    }, 10000);
+
+    const loadProducts = async () => {
+      try {
+        setError(null);
+        setLoading(true);
+
+        const featuredProducts = await fetchFeaturedProducts();
+
+        if (!isMounted) {
+          return;
+        }
+
+        setProducts(featuredProducts);
+      } catch (err) {
+        if (!isMounted) {
+          return;
+        }
+
+        const normalizedError = err instanceof Error ? err : new Error('Failed to load products from Supabase.');
+        console.error('fetchFeaturedProducts error:', normalizedError);
+        setError(normalizedError);
+        setProducts((current) => (current && current.length ? current : FALLBACK_PRODUCTS));
+      } finally {
+        if (isMounted) {
+          clearTimeout(safetyTimeout);
+          setLoading(false);
+        }
+      }
+    };
+
+    loadProducts();
 
     return () => {
       isMounted = false;
-      clearTimeout(timeoutId);
+      clearTimeout(safetyTimeout);
     };
   }, []);
 
   const fetchFeaturedProducts = async () => {
+    console.log('Fetching products from Supabase...');
+
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(() => controller.abort(), 9000);
+
+    let data: any[];
     try {
-      console.log('Fetching products...'); // Debug log
-      
-      const { data: panelsData, error: panelsError } = await supabase
-        .from('products')
-        .select('*')
-        .eq('category', 'panels')
-        .limit(2);
-
-      const { data: invertersData, error: invertersError } = await supabase
-        .from('products')
-        .select('*')
-        .eq('category', 'inverters')
-        .limit(2);
-
-      if (panelsError || invertersError) {
-        throw panelsError || invertersError;
-      }
-
-      const combinedProducts = [...(panelsData || []), ...(invertersData || [])];
-      console.log('Fetched products:', combinedProducts); // Debug log
-      
-      setProducts(combinedProducts);
-    } catch (error) {
-      console.error('Error fetching products:', error);
-      setError(error);
+      data = await supabaseRestSelect<any[]>('products', {
+        select: 'id,name,description,price,category,image_url,stock_quantity,is_on_sale,sale_price',
+        filters: [{ column: 'is_hidden', operator: 'eq', value: false }],
+        limit: 20,
+        signal: controller.signal,
+      });
     } finally {
-      setLoading(false);
+      window.clearTimeout(timeoutId);
     }
+    console.log(`Supabase returned ${data?.length ?? 0} products via REST fetch`);
+
+    if (!data || data.length === 0) {
+      console.warn('No products found in database. Using fallback catalog.');
+      return FALLBACK_PRODUCTS;
+    }
+
+    // Filter for featured products (panels and inverters)
+    const featured = data
+      .filter((product: any) => product.category === 'panels' || product.category === 'inverters')
+      .slice(0, 4);
+
+    if (!featured.length) {
+      console.warn('Supabase returned products but none matched featured filters. Using fallback catalog.');
+      return FALLBACK_PRODUCTS;
+    }
+
+    console.log('Using featured products:', featured.length);
+    return featured;
   };
 
   // Add a debug log to check component rendering
   console.log('Rendering Index with products:', products);
 
+  // Check for database function error
+  const isDatabaseFunctionError = error && error.message &&
+    (error.message.includes('function') || error.message.includes('not found'));
+
   if (error) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <h2 className="text-xl text-red-600 mb-2">Error loading products</h2>
-          <p className="text-gray-600">{error.message}</p>
+      <div className="flex flex-col items-center justify-center min-h-screen p-4">
+        <div className="max-w-2xl w-full text-center">
+          <h2 className="text-xl text-red-600 mb-2 flex items-center justify-center gap-2">
+            <AlertTriangle className="h-5 w-5" />
+            {isDatabaseFunctionError ? 'Missing Database Functions' : 'Error loading products'}
+          </h2>
+
+          {isDatabaseFunctionError ? (
+            <div className="mt-4 p-4 border rounded">
+              <p className="text-gray-600 mb-4">
+                Some required database functions are missing. These are needed to properly initialize the products table.
+              </p>
+              <DatabaseFunctionInitializer />
+            </div>
+          ) : (
+            <p className="text-gray-600">{error.message}</p>
+          )}
         </div>
       </div>
     );
@@ -109,8 +167,14 @@ const Index = () => {
   if (!products.length) {
     return (
       <div className="min-h-screen">
+        <div className="container mx-auto px-4 py-6">
+          <div className="mb-6">
+            <SupabaseDebugger />
+          </div>
+        </div>
         <section className="bg-gradient-to-br from-solar-blue to-blue-700 text-white">
           <div className="container py-20 md:py-32 flex flex-col items-center text-center">
+            <ProductInitializer />
             <h1 className="text-4xl md:text-6xl font-bold mb-6">
               {t("Power Your Home with Solar Energy", "زوّد منزلك بالطاقة الشمسية")}
             </h1>
@@ -150,13 +214,13 @@ const Index = () => {
               {t("Power Your Home with Solar Energy", "زوّد منزلك بالطاقة الشمسية")}
             </h1>
           </ScrollReveal>
-          
+
           <ScrollReveal delay={0.1}>
             <p className="text-lg md:text-xl max-w-2xl mb-8 text-blue-100">
               {t("High-quality solar panels and inverters for sustainable energy solutions.", "ألواح شمسية ومحولات عالية الجودة لحلول الطاقة المستدامة.")}
             </p>
           </ScrollReveal>
-          
+
           <ScrollReveal delay={0.2}>
             <div className="flex flex-wrap gap-4 justify-center">
               <Button size="lg" asChild className="bg-accent hover:bg-accent/90">
@@ -181,7 +245,7 @@ const Index = () => {
           <ScrollReveal>
             <h2 className="text-3xl font-bold text-center mb-12">{t("Our Features", "مميزاتنا")}</h2>
           </ScrollReveal>
-          
+
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             <ScrollReveal direction="up" delay={0.1}>
               <div className="border rounded-lg p-6 h-full flex flex-col items-center text-center">
@@ -194,7 +258,7 @@ const Index = () => {
                 </p>
               </div>
             </ScrollReveal>
-            
+
             <ScrollReveal direction="up" delay={0.2}>
               <div className="border rounded-lg p-6 h-full flex flex-col items-center text-center">
                 <div className="bg-primary/10 p-4 rounded-full mb-4">
@@ -206,7 +270,7 @@ const Index = () => {
                 </p>
               </div>
             </ScrollReveal>
-            
+
             <ScrollReveal direction="up" delay={0.3}>
               <div className="border rounded-lg p-6 h-full flex flex-col items-center text-center">
                 <div className="bg-primary/10 p-4 rounded-full mb-4">
@@ -228,19 +292,19 @@ const Index = () => {
           <ScrollReveal>
             <h2 className="text-3xl font-bold text-center mb-12">{t("Why Choose SolarG", "لماذا تختار SolarG")}</h2>
           </ScrollReveal>
-          
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
             <ScrollReveal direction="left">
-              <img 
-                src="/images/solar-home.jpg" 
-                alt={t("Solar powered home", "منزل يعمل بالطاقة الشمسية")} 
+              <img
+                src="/images/solar-home.jpg"
+                alt={t("Solar powered home", "منزل يعمل بالطاقة الشمسية")}
                 className="rounded-lg shadow-lg w-full"
                 onError={(e) => {
                   e.target.src = 'https://placehold.co/600x400?text=Solar+Home';
                 }}
               />
             </ScrollReveal>
-            
+
             <ScrollReveal direction="right">
               <div className="space-y-6">
                 <div className="flex gap-4 items-start">
@@ -254,7 +318,7 @@ const Index = () => {
                     </p>
                   </div>
                 </div>
-                
+
                 <div className="flex gap-4 items-start">
                   <div className="bg-primary/10 p-3 rounded-full">
                     <Check className="h-6 w-6 text-primary" />
@@ -266,7 +330,7 @@ const Index = () => {
                     </p>
                   </div>
                 </div>
-                
+
                 <div className="flex gap-4 items-start">
                   <div className="bg-primary/10 p-3 rounded-full">
                     <Check className="h-6 w-6 text-primary" />
@@ -303,7 +367,7 @@ const Index = () => {
           <ScrollReveal>
             <h3 className="text-xl font-semibold mb-4">{t("Solar Panels", "الألواح الشمسية")}</h3>
           </ScrollReveal>
-          
+
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-6 mb-8">
             {featuredPanels.length > 0 ? (
               featuredPanels.map((product, index) => (
@@ -336,12 +400,12 @@ const Index = () => {
               <p>{t("No solar panels available", "لا توجد ألواح شمسية متاحة")}</p>
             )}
           </div>
-          
+
           {/* Inverters */}
           <ScrollReveal>
             <h3 className="text-xl font-semibold mb-4">{t("Inverters", "العاكسات")}</h3>
           </ScrollReveal>
-          
+
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-6">
             {featuredInverters.length > 0 ? (
               featuredInverters.map((product, index) => (
@@ -385,13 +449,13 @@ const Index = () => {
               {t("Ready to Switch to Solar?", "هل أنت مستعد للتحول إلى الطاقة الشمسية؟")}
             </h2>
           </ScrollReveal>
-          
+
           <ScrollReveal delay={0.1}>
             <p className="text-xl max-w-2xl mx-auto mb-8 text-blue-100">
               {t("Start your journey to energy independence with our premium solar products.", "ابدأ رحلتك نحو استقلال الطاقة مع منتجاتنا الشمسية المتميزة.")}
             </p>
           </ScrollReveal>
-          
+
           <ScrollReveal delay={0.2}>
             <Button size="lg" className="bg-white text-solar-blue hover:bg-blue-50" asChild>
               <Link to="/products/panels">
@@ -416,7 +480,7 @@ const Index = () => {
                 </div>
               </div>
             </ScrollReveal>
-            
+
             <ScrollReveal direction="up" delay={0.2}>
               <div className="flex items-center gap-3">
                 <Package className="h-10 w-10 text-primary" />
@@ -426,7 +490,7 @@ const Index = () => {
                 </div>
               </div>
             </ScrollReveal>
-            
+
             <ScrollReveal direction="up" delay={0.3}>
               <div className="flex items-center gap-3">
                 <Check className="h-10 w-10 text-primary" />
@@ -452,23 +516,23 @@ const getArabicProductName = (englishName) => {
     "SolarG Home 5kW Inverter": "محول SolarG منزلي 5 كيلوواط",
     "SolarG Pro 10kW Three-Phase Inverter": "محول SolarG برو ثلاثي الطور 10 كيلوواط",
   };
-  
+
   return nameTranslations[englishName] || `${englishName} (بالعربية)`;
 };
 
 const getArabicProductDescription = (englishDescription) => {
   // Map of product descriptions to their Arabic translations
   const descriptionTranslations = {
-    "High-efficiency monocrystalline solar panel with advanced cell technology for maximum power output even in low-light conditions. Perfect for residential installations.": 
+    "High-efficiency monocrystalline solar panel with advanced cell technology for maximum power output even in low-light conditions. Perfect for residential installations.":
       "لوح شمسي أحادي البلورية عالي الكفاءة مع تقنية خلايا متقدمة لأقصى إنتاج للطاقة حتى في ظروف الإضاءة المنخفضة. مثالي للتركيبات السكنية.",
-    "Our highest-power residential solar panel featuring next-generation cell architecture for superior performance in all weather conditions. Ideal for maximizing energy production in limited roof space.": 
+    "Our highest-power residential solar panel featuring next-generation cell architecture for superior performance in all weather conditions. Ideal for maximizing energy production in limited roof space.":
       "لوح شمسي منزلي بأعلى قدرة يتميز بهندسة خلايا الجيل التالي للأداء المتفوق في جميع الظروف الجوية. مثالي لزيادة إنتاج الطاقة في مساحة السقف المحدودة.",
-    "Reliable single-phase string inverter for residential solar installations. Features maximum efficiency with advanced MPPT technology and comprehensive system monitoring.": 
+    "Reliable single-phase string inverter for residential solar installations. Features maximum efficiency with advanced MPPT technology and comprehensive system monitoring.":
       "محول سلسلة أحادي الطور موثوق للتركيبات الشمسية السكنية. يتميز بكفاءة قصوى مع تقنية MPPT المتقدمة ومراقبة شاملة للنظام.",
     "Professional three-phase inverter for large residential or small commercial installations. Features dual MPPT tracking, extended DC input range, and integrated energy management system.":
       "محول ثلاثي الطور احترافي للتركيبات السكنية الكبيرة أو التجارية الصغيرة. يتميز بتتبع MPPT مزدوج، ونطاق دخل DC موسع، ونظام متكامل لإدارة الطاقة.",
   };
-  
+
   return descriptionTranslations[englishDescription] || `${englishDescription} (بالعربية)`;
 };
 

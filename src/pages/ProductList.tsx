@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, Link } from "react-router-dom";
-import { supabase } from "@/lib/supabase";
+import { products as localProducts } from "@/data/products";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,6 +10,7 @@ import { useCart } from "@/contexts/CartContext";
 import { useToast } from "@/components/ui/use-toast";
 import { ShoppingCart, Filter } from "lucide-react";
 import ScrollReveal from "@/components/ScrollReveal";
+import { supabaseRestSelect } from "@/lib/supabaseRest";
 
 const ProductList = () => {
   const { category } = useParams();
@@ -24,71 +25,118 @@ const ProductList = () => {
   const [filteredProducts, setFilteredProducts] = useState<any[]>([]);
   const [maxPrice, setMaxPrice] = useState(5000);
   const [showFilters, setShowFilters] = useState(false);
-
-  // Test Supabase connection
-  useEffect(() => {
-    const testSupabase = async () => {
-      try {
-        const { data, error } = await supabase.from('products').select('count()');
-        console.log("Supabase connection test:", { data, error });
-        toast({
-          title: "Database connection",
-          description: error ? `Error: ${error.message}` : `Connected successfully. Found ${data?.[0]?.count || 0} products.`,
-          variant: error ? "destructive" : "default"
-        });
-      } catch (err) {
-        console.error("Supabase connection test failed:", err);
-        toast({
-          title: "Database connection failed",
-          description: `Error: ${err.message}`,
-          variant: "destructive"
-        });
-      }
-    };
-    testSupabase();
-  }, [toast]);
+  const [usingFallbackData, setUsingFallbackData] = useState(false);
+  const fallbackNoticeShown = useRef(false);
 
   // Fetch products
   useEffect(() => {
+    let isMounted = true;
+
+    const normalizeProduct = (raw: any) => {
+      const priceValue = typeof raw?.price === 'number' ? raw.price : Number(raw?.price) || 0;
+      const imageUrl = raw?.image_url || raw?.image || 'https://placehold.co/400x300?text=No+Image';
+
+      return {
+        ...raw,
+        price: priceValue,
+        image_url: imageUrl,
+        image: raw?.image ?? imageUrl,
+        name: raw?.name ?? '',
+        description: raw?.description ?? '',
+        name_ar: raw?.name_ar ?? '',
+        description_ar: raw?.description_ar ?? '',
+        category: raw?.category ?? category ?? 'all',
+      };
+    };
+
     const fetchProducts = async () => {
+      if (!isMounted) return;
+      setLoading(true);
+
+      let normalizedProducts: any[] = [];
+      let usedFallback = false;
+
       try {
-        setLoading(true);
-        console.log("Fetching products for category:", category);
-        
-        let query = supabase.from("products").select("*");
+        console.log('Fetching products for category:', category);
 
-        if (category && category !== "all") {
-          query = query.eq("category", category);
+        const filters = [{ column: 'is_hidden', operator: 'eq', value: false as const }];
+        if (category && category !== 'all') {
+          filters.push({ column: 'category', operator: 'eq', value: category });
         }
 
-        const { data, error } = await query;
+        const controller = new AbortController();
+        const timeoutId = window.setTimeout(() => controller.abort(), 9000);
 
-        if (error) {
-          console.error("Supabase error:", error);
-          throw error;
-        }
-        
-        console.log("Fetched products:", data);
-        
-        if (data && data.length > 0) {
-          setProducts(data);
-          
-          // Find the highest price for the slider
-          const highest = Math.ceil(Math.max(...data.map(p => p.price || 0)));
-          setMaxPrice(highest > 0 ? highest : 5000);
-          setPriceRange([0, highest > 0 ? highest : 5000]);
-        } else {
-          setProducts([]);
+        try {
+          const data = await supabaseRestSelect<any[]>('products', {
+            select: '*',
+            filters,
+            signal: controller.signal,
+          });
+
+          if (data && data.length > 0) {
+            normalizedProducts = data.map(normalizeProduct);
+            console.log('Fetched products:', normalizedProducts);
+          }
+        } finally {
+          window.clearTimeout(timeoutId);
         }
       } catch (err) {
-        console.error("Error fetching products:", err);
-      } finally {
-        setLoading(false);
+        console.error('Error fetching products:', err);
+        toast({
+          variant: "destructive",
+          title: t('Error', '������'),
+          description: err instanceof Error ? err.message : t('Failed to load products', '�?���" ���"�����^�� ���"�% �.�ŝ�������'),
+        });
       }
+
+      if (normalizedProducts.length === 0) {
+        const fallback = localProducts
+          .filter((product) => {
+            if (!category || category === 'all') return true;
+            return product.category === category;
+          })
+          .map(normalizeProduct);
+
+        if (fallback.length > 0) {
+          normalizedProducts = fallback;
+          usedFallback = true;
+
+          if (!fallbackNoticeShown.current) {
+            toast({
+              title: t('Showing sample products', 'عرض منتجات تجريبية'),
+              description: t(
+                'Unable to reach the product database. Displaying the built-in demo catalog instead.',
+                'تعذر الوصول إلى قاعدة بيانات المنتجات، لذلك نعرض الكتالوج التجريبي المدمج.'
+              ),
+            });
+            fallbackNoticeShown.current = true;
+          }
+        }
+      }
+
+      if (!isMounted) return;
+
+      setProducts(normalizedProducts);
+      setUsingFallbackData(usedFallback);
+
+      const highestPrice = normalizedProducts.reduce((max, item) => {
+        const price = typeof item?.price === 'number' ? item.price : Number(item?.price) || 0;
+        return price > max ? price : max;
+      }, 0);
+
+      const resolvedMax = highestPrice > 0 ? Math.ceil(highestPrice) : 5000;
+      setMaxPrice(resolvedMax);
+      setPriceRange([0, resolvedMax]);
+      setLoading(false);
     };
 
     fetchProducts();
-  }, [category]);
+
+    return () => {
+      isMounted = false;
+    };
+  }, [category, toast, t]);
 
   // Filter and sort products
   useEffect(() => {
@@ -183,6 +231,15 @@ const ProductList = () => {
       <ScrollReveal>
         <h1 className="text-3xl font-bold mb-8">{getCategoryTitle()}</h1>
       </ScrollReveal>
+
+      {usingFallbackData && (
+        <div className="mb-4 rounded-lg border border-dashed border-yellow-500 bg-yellow-50 p-3 text-sm text-yellow-700">
+          {t(
+            "Showing sample products while we reconnect to the database.",
+            "نعرض منتجات تجريبية بينما نعيد الاتصال بقاعدة البيانات."
+          )}
+        </div>
+      )}
 
       {/* Mobile filter toggle */}
       <Button 

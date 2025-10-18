@@ -15,7 +15,7 @@ const SolarAssistantPage: React.FC = () => {
           <p className="text-muted-foreground max-w-2xl mx-auto">
             {t(
               "Get expert advice, system calculations, and learn about solar energy with our AI-powered assistant.",
-              "احصل على نصائح الخبراء وحسابات النظام وتعلم عن الطاقة الشمسية مع مساعدنا المدعوم بالذكاء الاصطناعي."
+              "احصل على نصائح خبراء وحسابات الأنظمة وتعلم المزيد عن الطاقة الشمسية مع مساعدنا المدعوم بالذكاء الاصطناعي."
             )}
           </p>
         </div>
@@ -34,3 +34,4 @@ const SolarAssistantPage: React.FC = () => {
 };
 
 export default SolarAssistantPage;
+

@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
+import { supabaseRestSelect } from '@/lib/supabaseRest';
 import { useToast } from '@/components/ui/use-toast';
 
 interface AuthContextType {
@@ -41,19 +42,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         throw new Error('No user returned from login');
       }
 
-      // Get user profile
-      const { data: profile, error: profileError } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', data.user.id)
-        .single();
+      let role = 'user';
+      try {
+        const profileData = await supabaseRestSelect<any[]>('profiles', {
+          select: 'role',
+          filters: [{ column: 'id', operator: 'eq', value: data.user.id }],
+          limit: 1,
+        });
 
-      if (profileError) {
-        console.error('Profile error:', profileError);
-        throw profileError;
+        if (Array.isArray(profileData) && profileData[0]?.role) {
+          role = profileData[0].role;
+        }
+      } catch (profileError) {
+        console.warn('Profile fetch failed:', profileError);
       }
 
-      setUser({ ...data.user, role: profile?.role || 'user' });
+      setUser({ ...data.user, role });
       return { success: true };
 
     } catch (error) {
@@ -70,10 +74,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Check Supabase connection
   const checkConnection = async () => {
     try {
-      const { error } = await supabase.from('user_profiles').select('id').limit(1);
-      if (error && error.message.includes('Failed to fetch')) {
-        return { connected: false, error: 'Network error' };
-      }
+      await supabaseRestSelect('profiles', { select: 'id', limit: 1 });
       return { connected: true };
     } catch (error) {
       return { connected: false, error: error instanceof Error ? error.message : 'Unknown error' };
@@ -90,14 +91,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         
         if (session?.user) {
           // Get user profile
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('role')
-            .eq('id', session.user.id)
-            .single();
+          let role = 'user';
+          try {
+            const profileData = await supabaseRestSelect<any[]>('profiles', {
+              select: 'role',
+              filters: [{ column: 'id', operator: 'eq', value: session.user.id }],
+              limit: 1,
+            });
+
+            if (Array.isArray(profileData) && profileData[0]?.role) {
+              role = profileData[0].role;
+            }
+          } catch (profileError) {
+            console.warn('Profile fetch failed during init:', profileError);
+          }
 
           if (mounted) {
-            setUser({ ...session.user, role: profile?.role || 'user' });
+            setUser({ ...session.user, role });
           }
         }
       } catch (error) {
@@ -112,13 +122,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (session?.user && mounted) {
         // Get user profile on auth state change
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('role')
-          .eq('id', session.user.id)
-          .single();
+        let role = 'user';
+        try {
+          const profileData = await supabaseRestSelect<any[]>('profiles', {
+            select: 'role',
+            filters: [{ column: 'id', operator: 'eq', value: session.user.id }],
+            limit: 1,
+          });
 
-        setUser({ ...session.user, role: profile?.role || 'user' });
+          if (Array.isArray(profileData) && profileData[0]?.role) {
+            role = profileData[0].role;
+          }
+        } catch (profileError) {
+          console.warn('Profile fetch failed during auth change:', profileError);
+        }
+
+        setUser({ ...session.user, role });
       } else if (mounted) {
         setUser(null);
       }

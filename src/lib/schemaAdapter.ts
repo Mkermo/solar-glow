@@ -1,7 +1,30 @@
 import { supabase } from './supabase';
 
 // Cache for schema information to prevent repeated database calls
-let schemaCache = null;
+let schemaCache: any = null;
+
+async function getTableExistsAndColumns(tableName: string): Promise<{ exists: boolean; columns: Record<string, string> }> {
+  const result = { exists: false, columns: {} as Record<string, string> };
+  try {
+    const { error } = await supabase.from(tableName).select('*', { count: 'exact', head: true });
+    result.exists = !error;
+    if (!error) {
+      try {
+        const { data: columns } = await supabase.rpc('get_table_columns', { table_name: tableName });
+        if (columns) {
+          (columns as any[]).forEach((col: any) => {
+            result.columns[col.column_name] = col.data_type;
+          });
+        }
+      } catch (err) {
+        console.log(`Could not check ${tableName} columns`);
+      }
+    }
+  } catch (err) {
+    console.log(`Could not check ${tableName} table`);
+  }
+  return result;
+}
 
 /**
  * Helper function to adapt to different database schemas
@@ -15,78 +38,21 @@ export async function adaptToDatabaseSchema() {
   }
   
   const tables = {
-    categories: { exists: false, columns: {} },
-    topics: { exists: false, columns: {} },
-    comments: { exists: false, columns: {} },
-    replies: { exists: false, columns: {} }
+    categories: { exists: false, columns: {} as Record<string, string> },
+    topics: { exists: false, columns: {} as Record<string, string> },
+    comments: { exists: false, columns: {} as Record<string, string> },
+    replies: { exists: false, columns: {} as Record<string, string> }
   };
   
   try {
     // Check forum_categories table
-    const { error: categoriesError } = await supabase
-      .from('forum_categories')
-      .select('*', { count: 'exact', head: true });
-      
-    tables.categories.exists = !categoriesError;
-    
-    if (!categoriesError) {
-      try {
-        const { data: columns } = await supabase
-          .rpc('get_table_columns', { table_name: 'forum_categories' });
-          
-        if (columns) {
-          columns.forEach((col: any) => {
-            tables.categories.columns[col.column_name] = col.data_type;
-          });
-        }
-      } catch (err) {
-        console.log('Could not check forum_categories columns');
-      }
-    }
+    tables.categories = await getTableExistsAndColumns('forum_categories');
     
     // Check forum_topics table
-    const { error: topicsError } = await supabase
-      .from('forum_topics')
-      .select('*', { count: 'exact', head: true });
-      
-    tables.topics.exists = !topicsError;
-    
-    if (!topicsError) {
-      try {
-        const { data: columns } = await supabase
-          .rpc('get_table_columns', { table_name: 'forum_topics' });
-          
-        if (columns) {
-          columns.forEach((col: any) => {
-            tables.topics.columns[col.column_name] = col.data_type;
-          });
-        }
-      } catch (err) {
-        console.log('Could not check forum_topics columns');
-      }
-    }
+    tables.topics = await getTableExistsAndColumns('forum_topics');
     
     // Check forum_comments table
-    const { error: commentsError } = await supabase
-      .from('forum_comments')
-      .select('*', { count: 'exact', head: true });
-      
-    tables.comments.exists = !commentsError;
-    
-    if (!commentsError) {
-      try {
-        const { data: columns } = await supabase
-          .rpc('get_table_columns', { table_name: 'forum_comments' });
-          
-        if (columns) {
-          columns.forEach((col: any) => {
-            tables.comments.columns[col.column_name] = col.data_type;
-          });
-        }
-      } catch (err) {
-        console.log('Could not check forum_comments columns');
-      }
-    }
+    tables.comments = await getTableExistsAndColumns('forum_comments');
     
     // Check forum_replies table (alternative to forum_comments)
     const { error: repliesError } = await supabase

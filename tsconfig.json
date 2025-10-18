@@ -8,11 +8,21 @@
     "strict": true,
     "skipLibCheck": true,
     "baseUrl": ".",
+    "outDir": "./dist",
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": [
+        "./src/*"
+      ]
     }
   },
-  "include": ["src/**/*"],
+  "include": [
+    "src/**/*"
+  ],
+  "exclude": [
+    "dist",
+    "node_modules",
+    "src/**/*.js"
+  ],
   "ts-node": {
     "esm": true,
     "experimentalSpecifierResolution": "node"

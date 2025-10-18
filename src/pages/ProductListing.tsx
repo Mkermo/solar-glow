@@ -7,10 +7,10 @@ import { Slider } from "@/components/ui/slider";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Search, Sun, Package, Battery } from "lucide-react";
-import { supabase } from "@/lib/supabase";
 import { Product } from "@/contexts/CartContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useToast } from "@/components/ui/use-toast";
+import { supabaseRestSelect } from "@/lib/supabaseRest";
 
 const ProductListing = () => {
   const { lang } = useLanguage();
@@ -60,30 +60,26 @@ const ProductListing = () => {
         
         console.log("Fetching products for category:", category);
         
-        // Only select fields we need for the listing to reduce payload size
-        let query = supabase
-          .from("products")
-          .select("id, name, name_ar, price, image_url, category, description, description_ar")
-          .order('name', { ascending: true });
-
+        const filters = [{ column: 'is_hidden', operator: 'eq', value: false as const }];
         if (category && category !== "all") {
-          query = query.eq("category", category);
+          filters.push({ column: 'category', operator: 'eq', value: category });
         }
 
-        const { data, error } = await query;
+        const controller = new AbortController();
+        const timeoutId = window.setTimeout(() => controller.abort(), 9000);
+        let data: any[] = [];
 
-        if (error) {
-          console.error("Supabase error:", error);
-          if (isMounted.current) {
-            toast({
-              variant: "destructive",
-              title: "Error",
-              description: `Failed to load products: ${error.message}`
-            });
-          }
-          throw error;
+        try {
+          data = await supabaseRestSelect<any[]>('products', {
+            select: 'id,name,name_ar,price,image_url,category,description,description_ar',
+            filters,
+            order: { column: 'name', ascending: true },
+            signal: controller.signal,
+          });
+        } finally {
+          window.clearTimeout(timeoutId);
         }
-        
+
         // Only update state if the component is still mounted
         if (isMounted.current) {
           console.log(`Fetched ${data?.length || 0} products for category:`, category);
@@ -120,6 +116,11 @@ const ProductListing = () => {
       } catch (err) {
         console.error("Error fetching products:", err);
         if (isMounted.current) {
+          toast({
+            variant: "destructive",
+            title: "Error",
+            description: err instanceof Error ? err.message : 'Failed to load products.'
+          });
           setLoading(false);
         }
       }

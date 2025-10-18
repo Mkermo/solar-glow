@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { supabase } from '@/lib/supabase';
+import { products as localProducts } from '@/data/products';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useCart } from '@/contexts/CartContext';
 import { Button } from '@/components/ui/button';
@@ -9,6 +9,7 @@ import { ShoppingCart, ArrowLeft, Heart, Share2 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ProductImageUpload } from '@/components/ProductImageUpload';
 import ScrollReveal from '@/components/ScrollReveal';
+import { supabaseRestSelect } from '@/lib/supabaseRest';
 
 const ProductDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -19,48 +20,97 @@ const ProductDetail = () => {
   const [loading, setLoading] = useState(true);
   const [quantity, setQuantity] = useState(1);
   const [error, setError] = useState<string | null>(null);
+  const [usingFallbackData, setUsingFallbackData] = useState(false);
 
   // Clean ID (no -ar suffix)
   const cleanId = id?.replace('-ar', '');
 
   useEffect(() => {
-    const loadProduct = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        console.log('Loading product with ID:', cleanId);
-        
-        const { data, error } = await supabase
-          .from('products')
-          .select('*')
-          .eq('id', cleanId)
-          .single();
+    let isMounted = true;
+    let lastErrorMessage: string | null = null;
 
-        if (error) {
-          console.error('Supabase error:', error);
-          setError(error.message);
+    const normalizeProduct = (raw: any) => {
+      const priceValue = typeof raw?.price === 'number' ? raw.price : Number(raw?.price) || 0;
+      const imageUrl = raw?.image_url || raw?.image || 'https://placehold.co/600x400?text=No+Image';
+
+      return {
+        ...raw,
+        price: priceValue,
+        image_url: imageUrl,
+        image: raw?.image ?? imageUrl,
+        name: raw?.name ?? '',
+        description: raw?.description ?? '',
+        name_ar: raw?.name_ar ?? '',
+        description_ar: raw?.description_ar ?? '',
+        category: raw?.category ?? 'all',
+      };
+    };
+
+    const loadProduct = async () => {
+      if (!cleanId) {
+        setLoading(false);
+        return;
+      }
+
+      setLoading(true);
+      setError(null);
+      console.log('Loading product with ID:', cleanId);
+
+      try {
+        const controller = new AbortController();
+        const timeoutId = window.setTimeout(() => controller.abort(), 9000);
+        let data: any[] = [];
+
+        try {
+          data = await supabaseRestSelect<any[]>('products', {
+            select: '*',
+            filters: [
+              { column: 'id', operator: 'eq', value: cleanId },
+              { column: 'is_hidden', operator: 'eq', value: false as const },
+            ],
+            limit: 1,
+            signal: controller.signal,
+          });
+        } finally {
+          window.clearTimeout(timeoutId);
+        }
+
+        if (data && data.length > 0 && isMounted) {
+          console.log('Loaded product data:', data[0]);
+          setProduct(normalizeProduct(data[0]));
+          setUsingFallbackData(false);
+          setLoading(false);
           return;
         }
-        
-        if (!data) {
-          console.error('Product not found');
-          setError('Product not found');
-          return;
-        }
-        
-        console.log('Loaded product data:', data);
-        setProduct(data);
-      } catch (err: any) {
-        console.error('Error loading product:', err);
-        setError(err.message || 'Failed to load product');
-      } finally {
+      } catch (err) {
+        console.error('Supabase product fetch failed:', err);
+        lastErrorMessage = err instanceof Error ? err.message : 'Failed to load product';
+      }
+
+      const fallbackProduct = localProducts.find((item) => item.id === cleanId);
+
+      if (fallbackProduct && isMounted) {
+        console.log('Using fallback product data for:', cleanId);
+        setProduct(normalizeProduct(fallbackProduct));
+        setUsingFallbackData(true);
+        setError(null);
+        setLoading(false);
+        return;
+      }
+
+      if (isMounted) {
+        setProduct(null);
+        setUsingFallbackData(false);
+        setError(lastErrorMessage || 'Product not found');
         setLoading(false);
       }
     };
 
-    if (cleanId) {
-      loadProduct();
-    }
+    loadProduct();
+
+    return () => {
+      isMounted = false;
+    };
   }, [cleanId]);
 
   const handleAddToCart = () => {
@@ -115,6 +165,14 @@ const ProductDetail = () => {
 
   return (
     <div className="container py-8">
+      {usingFallbackData && (
+        <div className="mb-6 rounded-lg border border-dashed border-yellow-500 bg-yellow-50 p-3 text-sm text-yellow-700">
+          {t(
+            "Showing a sample product because the live catalog isn't available right now.",
+            "نعرض منتجًا تجريبيًا لأن الكتالوج المباشر غير متاح حاليًا."
+          )}
+        </div>
+      )}
       {/* Product navigation */}
       <div className="mb-6">
         <Link to={`/products/${product.category}`} className="text-sm text-gray-500 hover:text-primary">

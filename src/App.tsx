@@ -14,7 +14,6 @@ import createRequiredStorageBuckets from '@/lib/createStorageBuckets';
 import ForumCategoriesInitializer from '@/components/ForumCategoriesInitializer';
 import { initializeForumTables } from '@/lib/forumTableSetup';
 import { ensureForumDbSetup } from '@/lib/forumDbSetup';
-import { diagnoseForumIssues } from '@/lib/forumDiagnostics';
 import CreateForumTestData from '@/components/CreateForumTestData';
 import Footer from "@/components/Footer";
 import MainLayout from "./layouts/MainLayout";
@@ -38,7 +37,6 @@ import CategoryView from "./pages/Forum/CategoryView";
 import TopicView from "./pages/Forum/TopicView";
 import NewTopic from "./pages/Forum/NewTopic";
 import ForumDebug from "./pages/Forum/Debug";
-import ForumDiagnostics from "./pages/ForumDiagnostics";
 import Profile from "./pages/Profile";
 import Chat from "./pages/Chat";
 import LoginSuccess from "./pages/LoginSuccess";
@@ -48,6 +46,7 @@ import ProductEdit from "./pages/ProductEdit";
 import AddProduct from "./pages/AddProduct";
 import Unauthorized from "./pages/Unauthorized";
 import SolarAssistant from "./pages/SolarAssistant";
+import NetworkTest from "./pages/NetworkTest";
 
 const queryClient = new QueryClient();
 
@@ -71,12 +70,6 @@ function App() {
       // Ensure forum database functions are set up
       ensureForumDbSetup().then(dbResult => {
         console.log('Forum database setup result:', dbResult);
-        
-        // Expose diagnostic function to window for console debugging
-        if (typeof window !== 'undefined') {
-          (window as any).diagnoseForumIssues = diagnoseForumIssues;
-          console.log('Forum diagnostic function available as window.diagnoseForumIssues()');
-        }
       });
     });
   }, []);
@@ -89,7 +82,7 @@ function App() {
             <CartProvider>
               <ForumCategoriesInitializer />
               <CreateForumTestData />
-              <BrowserRouter>
+              <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
                 <MainLayout>
                   <Routes>
                     <Route path="/" element={<Index />} />
@@ -128,7 +121,6 @@ function App() {
                     <Route path="/forum/category/:categoryId" element={<CategoryView />} />
                     <Route path="/forum/topic/:topicId" element={<TopicView />} />
                     <Route path="/forum/debug" element={<ForumDebug />} />
-                    <Route path="/forum/diagnostics" element={<ForumDiagnostics />} />
                     <Route 
                       path="/forum/new-topic" 
                       element={

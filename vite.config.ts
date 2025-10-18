@@ -2,6 +2,7 @@ import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
 import { componentTagger } from "lovable-tagger";
+import { generateCspHeader } from "./src/lib/csp";
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
@@ -34,9 +35,21 @@ export default defineConfig(({ mode }) => {
       }
     },
     plugins: [
-      react(),
+      react({
+        jsxRuntime: 'automatic',
+      }),
       mode === 'development' &&
       componentTagger(),
+      {
+        name: 'configure-response-headers',
+        configureServer: (server) => {
+          server.middlewares.use((_req, res, next) => {
+            // Add CSP headers
+            res.setHeader('Content-Security-Policy', generateCspHeader());
+            next();
+          });
+        },
+      },
     ].filter(Boolean),
     resolve: {
       alias: {

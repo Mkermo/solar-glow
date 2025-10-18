@@ -1,7 +1,7 @@
-import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
+import React, { createContext, useState, useContext, useEffect, ReactNode, useRef } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { generateSolarAIResponse } from '@/lib/solarAIResponses';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { getAIResponse, type AIMessage } from '@/services/aiService';
 
 type Message = {
   id: string;
@@ -22,12 +22,13 @@ type SolarAssistantContextType = {
 const SolarAssistantContext = createContext<SolarAssistantContextType | undefined>(undefined);
 
 export const SolarAssistantProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const { lang } = useLanguage();
-  
-  const initialMessage = lang === 'ar' 
-    ? 'مرحباً! أنا مساعد الطاقة الشمسية. كيف يمكنني مساعدتك في أسئلتك حول الطاقة الشمسية اليوم؟'
-    : 'Hello! I\'m your Solar Assistant. How can I help you with your solar energy questions today?';
-    
+  const { lang, t } = useLanguage();
+
+  const initialMessage = t(
+    "Hello! I'm your Solar Assistant. How can I help with your solar energy questions today?",
+    "مرحباً! أنا مساعدك للطاقة الشمسية. كيف يمكنني مساعدتك اليوم في أسئلتك حول الطاقة الشمسية؟"
+  );
+
   const [messages, setMessages] = useState<Message[]>([
     {
       id: uuidv4(),
@@ -38,11 +39,13 @@ export const SolarAssistantProvider: React.FC<{ children: ReactNode }> = ({ chil
   ]);
   const [isTyping, setIsTyping] = useState<boolean>(false);
   const [showCalculator, setShowCalculator] = useState<boolean>(false);
+  const inFlightController = useRef<AbortController | null>(null);
 
   // Save messages to local storage
   useEffect(() => {
     if (messages.length > 1) {
-      localStorage.setItem('solarAssistantMessages', JSON.stringify(messages));
+      const trimmed = messages.slice(-100); // keep last 100 messages
+      localStorage.setItem('solarAssistantMessages', JSON.stringify(trimmed));
     }
   }, [messages]);
 
@@ -76,29 +79,54 @@ export const SolarAssistantProvider: React.FC<{ children: ReactNode }> = ({ chil
     };
 
     setMessages((prev) => [...prev, userMessage]);
+
+    // Cancel any in-flight request
+    if (inFlightController.current) {
+      inFlightController.current.abort();
+    }
+
+    const controller = new AbortController();
+    inFlightController.current = controller;
     setIsTyping(true);
 
-    // Simulate AI response generation with a slight delay for realism
-    setTimeout(() => {
-      const aiResponse = generateSolarAIResponse(content, messages, lang);
-      
-      const assistantMessage: Message = {
-        id: uuidv4(),
-        role: 'assistant',
-        content: aiResponse,
-        timestamp: new Date(),
-      };
+    // Prepare short history for context
+    const history: AIMessage[] = messages.slice(-8).map((m) => ({ role: m.role, content: m.content }));
 
-      setMessages((prev) => [...prev, assistantMessage]);
-      setIsTyping(false);
-    }, 1000);
+    getAIResponse(content, history, { language: lang, abortSignal: controller.signal })
+      .then((aiResponse) => {
+        const assistantMessage: Message = {
+          id: uuidv4(),
+          role: 'assistant',
+          content: aiResponse || t('Sorry, I could not generate a response.', 'عذراً، لم أتمكن من إنشاء إجابة.'),
+          timestamp: new Date(),
+        };
+        setMessages((prev) => [...prev, assistantMessage]);
+      })
+      .catch((err) => {
+        if ((err as any)?.name === 'AbortError') return; // Ignore aborted
+        console.error('AI error:', err);
+        const assistantMessage: Message = {
+          id: uuidv4(),
+          role: 'assistant',
+          content: t('There was an issue answering. Please try again.', 'حدثت مشكلة أثناء الإجابة. يرجى المحاولة مرة أخرى.'),
+          timestamp: new Date(),
+        };
+        setMessages((prev) => [...prev, assistantMessage]);
+      })
+      .finally(() => {
+        if (inFlightController.current === controller) {
+          inFlightController.current = null;
+        }
+        setIsTyping(false);
+      });
   };
 
   const clearMessages = () => {
-    const initialMessage = lang === 'ar' 
-      ? 'مرحباً! أنا مساعد الطاقة الشمسية. كيف يمكنني مساعدتك في أسئلتك حول الطاقة الشمسية اليوم؟'
-      : 'Hello! I\'m your Solar Assistant. How can I help you with your solar energy questions today?';
-      
+    const initialMessage = t(
+      "Hello! I'm your Solar Assistant. How can I help with your solar energy questions today?",
+      "مرحباً! أنا مساعدك للطاقة الشمسية. كيف يمكنني مساعدتك اليوم في أسئلتك حول الطاقة الشمسية؟"
+    );
+
     setMessages([
       {
         id: uuidv4(),

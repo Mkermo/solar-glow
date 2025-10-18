@@ -10,7 +10,8 @@ import { SolarSystem, SolarPanel, SolarPanelHealth } from '@/types/solarTypes';
 // Helper function to get the proper response based on language and query
 export function generateSolarAIResponse(userMessage: string, previousMessages: any[], language: string = 'en'): string {
   const query = userMessage.toLowerCase();
-  const isArabic = language === 'ar';
+  const hasArabicChars = /[\u0600-\u06FF]/.test(query); // Detect Arabic characters in the prompt
+  const isArabic = language === 'ar' || hasArabicChars;
   
   // English keywords
   const panelTypeKeywordsEn = ['panel type', 'panel types', 'monocrystalline', 'polycrystalline', 'thin film'];
@@ -52,7 +53,20 @@ export function generateSolarAIResponse(userMessage: string, previousMessages: a
   const lifespanKeywords = isArabic ? lifespanKeywordsAr : lifespanKeywordsEn;
   const offGridKeywords = isArabic ? offGridKeywordsAr : offGridKeywordsEn;
   const wiringKeywords = isArabic ? wiringKeywordsAr : wiringKeywordsEn;
-  
+
+  const greetingKeywordsEn = ['hello', 'hi', 'hi there', 'hey', 'good morning', 'good afternoon', 'good evening', 'greetings'];
+  const greetingKeywordsAr = ['مرحبا', 'مرحباً', 'اهلا', 'أهلاً', 'أهلا وسهلا', 'السلام عليكم', 'صباح الخير', 'مساء الخير'];
+  const greetingKeywords = isArabic ? greetingKeywordsAr : greetingKeywordsEn;
+
+  const sanitizedQuery = query.replace(/[^a-z0-9\s\u0600-\u06FF]/g, ' ').trim();
+  const sanitizedWords = sanitizedQuery ? sanitizedQuery.split(/\s+/).filter(Boolean) : [];
+  const containsGreeting = greetingKeywords.some((keyword) => sanitizedQuery.includes(keyword));
+  const hasTopicHint = /(panel|battery|volt|amp|watt|system|solar|storage|install|maintain|cost|لوح|بطاري|بطارية|فولت|أمبير|تركيب|تكلفة)/u.test(sanitizedQuery);
+
+  if (containsGreeting && (sanitizedWords.length <= 4 || !hasTopicHint)) {
+    return getGreetingResponse(isArabic, previousMessages);
+  }
+
   // Check if query includes any keywords from the arrays
   const includesAny = (arr: string[]) => arr.some(keyword => query.includes(keyword));
   
@@ -94,6 +108,24 @@ export function generateSolarAIResponse(userMessage: string, previousMessages: a
   
   // Default response if no specific keywords match
   return getDefaultResponse(isArabic);
+}
+
+function getGreetingResponse(isArabic: boolean = false, previousMessages: any[] = []): string {
+  const hasPreviousUser = Array.isArray(previousMessages) && previousMessages.some((msg) => msg?.role === 'user');
+
+  if (isArabic) {
+    if (hasPreviousUser) {
+      return `مرحباً بك من جديد! أخبرني أين توقفت أو ما التحديث الجديد وسأرشدك للخطوة التالية فوراً.`;
+    }
+
+    return `أهلاً! أنا مساعد الطاقة الشمسية ويمكنني مساعدتك في حساب المقاسات، مقارنة الألواح، أو حل مشاكل التوصيل. شاركني ما تعمل عليه لنبدأ.`;
+  }
+
+  if (hasPreviousUser) {
+    return `Welcome back! Let me know what you'd like to focus on next: panel sizing, wiring checks, storage planning, or incentives, and I'll pick up from there.`;
+  }
+
+  return `Hi there! I'm ready to help with solar questions like panel sizing, wiring options, storage planning, or incentives. Tell me what you're working on and we'll tackle it together.`;
 }
 
 function getPanelTypeResponse(isArabic: boolean = false): string {
@@ -481,20 +513,9 @@ function getDefaultResponse(isArabic: boolean = false): string {
 هل يمكنك من فضلك تقديم المزيد من التفاصيل حول جانب معين من جوانب الطاقة الشمسية الذي تهتم بمعرفة المزيد عنه؟ سيساعدني ذلك على تقديم المعلومات الأكثر صلة لك.`;
   }
   
-  return `Thank you for your question about solar energy! 
+  return `Thanks for reaching out! I can help with solar panel selection, system sizing, wiring approaches, storage planning, incentives, and more.
 
-I'd be happy to provide information on many solar-related topics, including:
-
-• Solar panel types and efficiency
-• System sizing and design
-• Cost and financial incentives
-• Installation process and requirements
-• Battery storage options
-• Maintenance best practices
-• Off-grid vs. grid-tied systems
-• Environmental benefits
-
-Could you please provide more details about what specific aspect of solar energy you're interested in learning about? This will help me give you the most relevant information.`;
+Share any details you have: panel wattage, roof space, location, or goals, and I'll tailor the guidance to the next best step for you.`;
 }
 
 /**
@@ -502,6 +523,26 @@ Could you please provide more details about what specific aspect of solar energy
  * This function analyzes the query to provide specific answers about wiring solar panels to batteries
  */
 function getWiringResponse(isArabic: boolean = false, query: string): string {
+  const mentionsSeries = query.includes('series');
+
+  if (query.includes('660') && query.includes('330') && (mentionsSeries || query.includes('in series'))) {
+    if (isArabic) {
+      return `توصيل لوح بقدرة 660 واط مع لوح 330 واط على التوالي يعني أن نفس التيار يمر عبر اللوحين. اللوح الأصغر هو الذي يحدد الحد الأقصى للتيار، لذلك سيعمل الزوج تقريباً كما لو أنهما لوحان بقدرة 330 واط مع بعض الفاقد في الطاقة المتاحة من اللوح الأكبر.
+
+لتحافظ على التوصيل بأمان:
+- تأكد أن مجموع جهدي Voc و Vmp يقع ضمن حدود منظم الشحن أو العاكس.
+- فكّر في التوصيل على التوازي فقط إذا كانت قيم الجهد متقاربة جداً.
+- يفضل استخدام متتبع MPPT مستقل أو عاكسات صغيرة لكل لوح حتى لا يختنق اللوح الأكبر.`;
+    }
+
+    return `Connecting a 660 W panel with a 330 W panel in series forces both modules to run at the same current. The smaller panel sets the current limit, so the pair behaves almost like two 330 W panels and the extra capacity of the larger module is mostly lost.
+
+To keep things safe:
+- Confirm the combined Voc and Vmp stay within your charge controller or inverter limits.
+- Parallel wiring is only a good idea if their voltage ratings are very close.
+- Separate MPPT inputs or micro-inverters let the larger panel deliver its full output without being throttled.`;
+  }
+
   // Check for specific connection case about 660W panels and 200Ah batteries
   if (query.includes('660') && query.includes('200') && query.includes('امبير')) {
     if (isArabic) {

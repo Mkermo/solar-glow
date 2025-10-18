@@ -1,56 +1,49 @@
+// This file is deprecated and should not be used anymore.
+// Products should be fetched directly from Supabase instead.
+
+import { supabase } from './supabase';
+
+// For backward compatibility
+export interface LocalProduct {
+  id: string;
+  name: string;
+  price: number;
+  image?: string;
+  description?: string;
+  category: string;
+}
+
 /**
- * Manual Database Initialization
- * 
- * This module provides direct product creation bypassing database tables
- * using localStorage as a fallback when Supabase is unavailable or lacking permissions.
+ * Check if products exist in the database
  */
-
-import { sampleProducts } from './productUtils';
-
-// Store products in localStorage
-export const initializeLocalProducts = () => {
+export async function hasLocalProducts(): Promise<boolean> {
   try {
-    // Save products to localStorage
-    localStorage.setItem('solar-glow-products', JSON.stringify(sampleProducts));
-    console.log('Products saved to localStorage');
-    return true;
+    const { count, error } = await supabase
+      .from('products')
+      .select('*', { count: 'exact', head: true });
+    
+    if (error) throw error;
+    return (count ?? 0) > 0;
   } catch (err) {
-    console.error('Failed to save products to localStorage:', err);
+    console.error('Failed to check products:', err);
     return false;
   }
-};
+}
 
-// Get products from localStorage
-export const getLocalProducts = () => {
+/**
+ * Get products directly from Supabase
+ */
+export async function getLocalProducts(): Promise<LocalProduct[]> {
   try {
-    const products = localStorage.getItem('solar-glow-products');
-    if (products) {
-      return JSON.parse(products);
-    }
+    const { data, error } = await supabase
+      .from('products')
+      .select('*');
+    
+    if (error) throw error;
+    return data || [];
+  } catch (err) {
+    console.error('Failed to get products:', err);
     return [];
-  } catch (err) {
-    console.error('Failed to get products from localStorage:', err);
-    return [];
   }
-};
+}
 
-// Check if products exist in localStorage
-export const hasLocalProducts = () => {
-  try {
-    const products = localStorage.getItem('solar-glow-products');
-    return !!products;
-  } catch (err) {
-    return false;
-  }
-};
-
-// Clear products from localStorage
-export const clearLocalProducts = () => {
-  try {
-    localStorage.removeItem('solar-glow-products');
-    return true;
-  } catch (err) {
-    console.error('Failed to clear products from localStorage:', err);
-    return false;
-  }
-};

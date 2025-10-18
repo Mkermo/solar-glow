@@ -60,6 +60,29 @@ This project is built with:
 - shadcn-ui
 - Tailwind CSS
 
+## AI Assistant configuration
+
+The Solar Assistant supports multiple providers with automatic fallback:
+
+- AI: Server — set `VITE_AI_ENDPOINT` to your proxy that accepts `{ messages, language }` and returns `{ content }`.
+- AI: OpenAI — set `VITE_OPENAI_API_KEY` in `.env` (optionally `VITE_OPENAI_MODEL`, default `gpt-4o-mini`). This calls OpenAI directly from the browser; use for local development only.
+- AI: Local — if neither is set, a lightweight local responder is used as fallback.
+
+Example `.env` entries:
+
+```
+VITE_OPENAI_API_KEY=sk-...
+VITE_OPENAI_MODEL=gpt-4o-mini
+# Or, preferred for production via your own proxy:
+# VITE_AI_ENDPOINT=/api/ai
+```
+
+Key files:
+
+- `src/services/aiService.ts` — provider selection and request logic.
+- `src/contexts/SolarAssistantContext.tsx` — chat state, persistence, AI calls.
+- `src/components/SolarAssistant.tsx` — UI with improved layout and provider badge.
+
 ## How can I deploy this project?
 
 Simply open [Lovable](https://lovable.dev/projects/46511139-b99a-4861-aa69-e195dbb3585e) and click on Share -> Publish.
