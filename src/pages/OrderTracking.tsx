@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { ArrowLeft, SearchIcon, Package, TruckIcon, HomeIcon, CheckCircle2 } from "lucide-react";
-import MainLayout from "@/layouts/MainLayout";
 
 interface TrackingStep {
   status: string;
@@ -102,7 +101,7 @@ const OrderTracking = () => {
   };
   
   return (
-    <MainLayout>
+    <>
       <div className="container py-8 max-w-4xl">
         <h1 className="text-3xl font-bold mb-8">Order Tracking</h1>
         
@@ -221,7 +220,7 @@ const OrderTracking = () => {
           </div>
         )}
       </div>
-    </MainLayout>
+    </>
   );
 };
 

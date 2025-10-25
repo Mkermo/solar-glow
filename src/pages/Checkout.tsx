@@ -9,7 +9,6 @@ import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Card, CardContent } from "@/components/ui/card";
 import { ArrowLeft, CreditCard, Truck, CheckCircle } from "lucide-react";
-import MainLayout from "@/layouts/MainLayout";
 import { useCart } from "@/contexts/CartContext";
 
 type CheckoutStep = "information" | "shipping" | "payment" | "confirmation";
@@ -93,7 +92,7 @@ const Checkout = () => {
   }
   
   return (
-    <MainLayout>
+    <>
       <div className="container py-8 max-w-5xl">
         {/* Checkout Steps */}
         <div className="mb-8">
@@ -488,7 +487,7 @@ const Checkout = () => {
           </div>
         </div>
       </div>
-    </MainLayout>
+    </>
   );
 };
 

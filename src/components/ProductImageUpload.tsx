@@ -2,7 +2,7 @@ import { useRef, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
-import { Loader2, Link, Upload } from "lucide-react";
+import { Loader2, Upload, Trash2 } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -18,7 +18,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 interface ProductImageUploadProps {
   productId: string;
   currentImageUrl: string | null;
-  onImageUpdate: (newUrl: string) => void;
+  onImageUpdate: (newUrl: string | null) => void;
   showChangeButton?: boolean;
 }
 
@@ -29,6 +29,7 @@ export function ProductImageUpload({
   showChangeButton = true 
 }: ProductImageUploadProps) {
   const [uploading, setUploading] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [imageUrl, setImageUrl] = useState('');
   const { toast } = useToast();
@@ -150,6 +151,7 @@ export function ProductImageUpload({
 
       console.log("Product updated successfully");
       onImageUpdate(publicUrl);
+      setDialogOpen(false);
       
       toast({
         title: "Success",
@@ -169,6 +171,67 @@ export function ProductImageUpload({
       });
     } finally {
       setUploading(false);
+    }
+  };
+
+  const extractStoragePath = (url: string) => {
+    const marker = "/storage/v1/object/public/products/";
+    const index = url.indexOf(marker);
+    if (index === -1) return null;
+    const pathWithQuery = url.substring(index + marker.length);
+    return pathWithQuery.split("?")[0];
+  };
+
+  const handleDeleteImage = async () => {
+    if (!currentImageUrl) {
+      toast({
+        title: "No image to delete",
+        description: "This product does not have an image assigned yet."
+      });
+      return;
+    }
+
+    try {
+      setDeleting(true);
+
+      const storagePath = extractStoragePath(currentImageUrl);
+      if (storagePath) {
+        const { error: storageError } = await supabase
+          .storage
+          .from('products')
+          .remove([storagePath]);
+
+        if (storageError) {
+          console.error('Storage delete error:', storageError);
+          throw new Error(`Failed to remove stored image: ${storageError.message}`);
+        }
+      }
+
+      const { error: updateError } = await supabase
+        .from('products')
+        .update({ image_url: null })
+        .eq('id', productId);
+
+      if (updateError) {
+        console.error('Update error:', updateError);
+        throw new Error(`Failed to update product image: ${updateError.message}`);
+      }
+
+      onImageUpdate(null);
+      setDialogOpen(false);
+      toast({
+        title: "Image removed",
+        description: "Product image deleted successfully"
+      });
+    } catch (error) {
+      console.error('Delete image error:', error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to delete image"
+      });
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -270,7 +333,7 @@ export function ProductImageUpload({
               </Tabs>
             </DialogContent>
           </Dialog>
-          
+         
           {/* Keep the original file input for compatibility */}
           <div className="hidden">
             <input
@@ -294,6 +357,25 @@ export function ProductImageUpload({
               Upload File Directly
             </Button>
           </div>
+          <Button
+            type="button"
+            variant="destructive"
+            className="w-full"
+            disabled={uploading || deleting}
+            onClick={handleDeleteImage}
+          >
+            {deleting ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Deleting...
+              </>
+            ) : (
+              <>
+                <Trash2 className="mr-2 h-4 w-4" />
+                Delete Image
+              </>
+            )}
+          </Button>
         </div>
       )}
     </div>

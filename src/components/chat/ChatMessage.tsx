@@ -2,6 +2,7 @@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAuth } from "@/contexts/AuthContext";
 import { User } from "@supabase/supabase-js";
+import { getSafeStorageUrl } from "@/lib/storageUtils";
 
 export interface ChatMessageProps {
   id: string;
@@ -64,7 +65,7 @@ export const ChatMessage = ({
       </div>
       {isCurrentUser && (
         <Avatar className="h-8 w-8">
-          <AvatarImage src={currentUser.user_metadata?.avatar_url} />
+          <AvatarImage src={getSafeStorageUrl(currentUser.user_metadata?.avatar_url)} />
           <AvatarFallback className="bg-primary">
             {currentUser.email ? currentUser.email.charAt(0).toUpperCase() : "U"}
           </AvatarFallback>

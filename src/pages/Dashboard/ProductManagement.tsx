@@ -51,7 +51,7 @@ const ProductManagement = () => {
     }
   };
 
-  const handleImageUpdate = async (productId: string, newImageUrl: string) => {
+  const handleImageUpdate = async (productId: string, newImageUrl: string | null) => {
     try {
       // Update the product with the new image URL
       const { error } = await supabase
@@ -69,8 +69,8 @@ const ProductManagement = () => {
       );
 
       toast({
-        title: "Image Updated",
-        description: "Product image has been updated successfully"
+        title: newImageUrl ? "Image Updated" : "Image Removed",
+        description: newImageUrl ? "Product image has been updated successfully" : "Product image has been removed"
       });
     } catch (err: any) {
       toast({

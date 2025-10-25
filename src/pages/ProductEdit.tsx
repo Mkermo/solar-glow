@@ -61,7 +61,7 @@ export default function ProductEdit() {
     navigate('/dashboard');
   };
 
-  const handleImageUpdate = (newUrl: string) => {
+  const handleImageUpdate = (newUrl: string | null) => {
     console.log("Image updated with new URL:", newUrl);
     setProduct(prev => ({
       ...prev,
@@ -69,8 +69,8 @@ export default function ProductEdit() {
     }));
     
     toast({
-      title: "Image Updated",
-      description: "Product image has been updated"
+      title: newUrl ? "Image Updated" : "Image Removed",
+      description: newUrl ? "Product image has been updated" : "Product image has been removed"
     });
   };
 

@@ -9,7 +9,7 @@ export const cspDirectives = {
   'default-src': ["'self'"],
   'script-src': ["'self'", "'unsafe-eval'", "'unsafe-inline'", 'https://cdn.jsdelivr.net'], // Allow eval for libraries that need it
   'connect-src': ["'self'", 'https://*.supabase.co', 'https://*.supabase.in', 'wss://*.supabase.co'], // For Supabase connections
-  'img-src': ["'self'", 'data:', 'blob:', 'https://images.unsplash.com', 'https://*.supabase.co'], // Common image sources
+  'img-src': ["'self'", 'data:', 'blob:', 'https://images.unsplash.com', 'https://*.supabase.co', 'https://placehold.co'], // Common image sources
   'style-src': ["'self'", "'unsafe-inline'", 'https://cdn.jsdelivr.net', 'https://fonts.googleapis.com'], // For inline styles and external stylesheets
   'font-src': ["'self'", 'data:', 'https://fonts.gstatic.com', 'https://fonts.googleapis.com'],
   'object-src': ["'none'"],

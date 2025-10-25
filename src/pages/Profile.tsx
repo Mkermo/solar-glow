@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/use-toast";
 import { User } from "@supabase/supabase-js";
+import { getSafeStorageUrl } from "@/lib/storageUtils";
 
 export default function Profile() {
   const [loading, setLoading] = useState(true);
@@ -38,7 +39,7 @@ export default function Profile() {
       
       if (data) {
         setFullName(data.full_name || '');
-        setAvatarUrl(data.avatar_url || '');
+        setAvatarUrl(getSafeStorageUrl(data.avatar_url) || '');
       }
       setUser(session.user);
     } catch (error) {
@@ -77,16 +78,20 @@ export default function Profile() {
       }
 
       // Update profile
+      const safeAvatarUrl = getSafeStorageUrl(avatar_url) ?? null;
+
       const { error } = await supabase
         .from('profiles')
         .upsert({
           id: user.id,
           full_name: fullName,
-          avatar_url: avatar_url,
+          avatar_url: safeAvatarUrl,
           updated_at: new Date().toISOString(),
         });
 
       if (error) throw error;
+
+      setAvatarUrl(typeof safeAvatarUrl === 'string' ? safeAvatarUrl : '');
 
       toast({
         title: "Success",
