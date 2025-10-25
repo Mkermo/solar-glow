@@ -1,7 +1,14 @@
 import { supabase } from './supabase';
+const canBootstrapForumDb = import.meta.env.VITE_ENABLE_SUPABASE_BOOTSTRAP === 'true';
 
 // Function to check if SQL functions are available
 export async function checkForumDbSetup() {
+  if (!canBootstrapForumDb) {
+    const message = 'Forum DB bootstrap skipped on client (requires elevated Supabase key).';
+    console.info(message);
+    return { success: true, skipped: true, message };
+  }
+
   try {
     // Check if create_missing_profiles function exists by trying to call it
     const { error: profileError } = await supabase.rpc('create_missing_profiles');

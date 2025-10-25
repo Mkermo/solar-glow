@@ -8,6 +8,14 @@ import { supabase } from './supabase';
  * be done through the Supabase dashboard by an administrator
  */
 export const setupStorage = async () => {
+  const canManageBuckets = import.meta.env.VITE_ENABLE_SUPABASE_BOOTSTRAP === 'true';
+
+  if (!canManageBuckets) {
+    const message = 'Storage bucket check skipped on client (requires service role key).';
+    console.info(message);
+    return { success: true, skipped: true, message };
+  }
+
   try {
     console.log('Checking Supabase storage buckets...');
 

@@ -2,6 +2,14 @@
 import { supabase } from './supabase';
 
 export async function createRequiredStorageBuckets() {
+  const canManageBuckets = import.meta.env.VITE_ENABLE_SUPABASE_BOOTSTRAP === 'true';
+
+  if (!canManageBuckets) {
+    const message = 'Skipping client-side storage bucket creation (requires service role).';
+    console.info(message);
+    return { success: true, skipped: true, message };
+  }
+
   console.log('Checking and creating required storage buckets...');
   
   const requiredBuckets = [

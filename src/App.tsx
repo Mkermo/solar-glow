@@ -49,28 +49,29 @@ import SolarAssistant from "./pages/SolarAssistant";
 import NetworkTest from "./pages/NetworkTest";
 
 const queryClient = new QueryClient();
+const enableSupabaseBootstrap = import.meta.env.VITE_ENABLE_SUPABASE_BOOTSTRAP === 'true';
 
 function App() {
   // Setup storage buckets on app initialization
   useEffect(() => {
-    // Check storage buckets
-    setupStorage().then(result => {
-      console.log('Storage setup result:', result);
-      
-      // Also create the required buckets that are missing
-      createRequiredStorageBuckets().then(bucketResult => {
-        console.log('Storage buckets setup result:', bucketResult);
+    if (enableSupabaseBootstrap) {
+      setupStorage().then(result => {
+        console.log('Storage setup result:', result);
+        
+        createRequiredStorageBuckets().then(bucketResult => {
+          console.log('Storage buckets setup result:', bucketResult);
+        });
       });
-    });
-    
-    // Check forum tables
-    initializeForumTables().then(result => {
-      console.log('Forum tables check result:', result);
       
-      // Ensure forum database functions are set up
       ensureForumDbSetup().then(dbResult => {
         console.log('Forum database setup result:', dbResult);
       });
+    } else {
+      console.info('Supabase bootstrap disabled; skipping client-side bucket creation and DB migrations.');
+    }
+    
+    initializeForumTables().then(result => {
+      console.log('Forum tables check result:', result);
     });
   }, []);
   
