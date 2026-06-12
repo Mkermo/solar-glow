@@ -1,0 +1,89 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-paper font-sans text-ink antialiased;
+  }
+
+  ::selection {
+    @apply bg-solar text-ink;
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    @apply bg-ink;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply rounded-full bg-solar/70;
+  }
+}
+
+@layer components {
+  /* Small uppercase mono label — the editorial "kicker" above headlines */
+  .kicker {
+    @apply font-mono text-[0.7rem] uppercase tracking-[0.35em];
+  }
+
+  /* Hairline rule with a number/label, print-magazine style */
+  .rule {
+    @apply flex items-center gap-4 border-t pt-3;
+  }
+
+  /* Frosted glass panel for dark sections */
+  .glass {
+    @apply border border-white/10 bg-white/[0.04] backdrop-blur-md;
+  }
+
+  /* Frosted glass panel for paper sections */
+  .glass-paper {
+    @apply border border-ink/10 bg-white/40 backdrop-blur-md;
+  }
+
+  /* Glossy golden text */
+  .text-gloss {
+    @apply bg-gradient-to-b from-solar-glow via-solar to-solar-deep bg-clip-text text-transparent;
+  }
+
+  /* Hollow outline display type */
+  .text-outline {
+    -webkit-text-stroke: 1.5px currentColor;
+    color: transparent;
+  }
+
+  /* Glossy specular sweep on hover */
+  .shine {
+    position: relative;
+    overflow: hidden;
+  }
+  .shine::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(105deg, transparent 40%, rgba(255, 255, 255, 0.35) 50%, transparent 60%);
+    transform: translateX(-120%);
+    transition: transform 0.9s ease;
+    pointer-events: none;
+  }
+  .shine:hover::after {
+    transform: translateX(120%);
+  }
+}
+
+@layer utilities {
+  /* Film grain — applied as a fixed decorative overlay (GrainOverlay component) */
+  .grain {
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+
+  .pause-on-hover:hover * {
+    animation-play-state: paused;
+  }
+}

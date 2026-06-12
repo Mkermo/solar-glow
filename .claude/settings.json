@@ -1,0 +1,31 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(php -v)",
+      "Bash(composer --version)",
+      "WebFetch(domain:github.com)",
+      "WebSearch",
+      "Bash(curl -s https://repo.packagist.org/p2/filament/filament.json)",
+      "Bash(git mv *)",
+      "Bash(git rm *)",
+      "Bash(composer create-project *)",
+      "Bash(composer require *)",
+      "Bash(composer show *)",
+      "Read(//c/laragon/www/open-design/**)",
+      "Bash(printf \"\\\\n    'admin_email' => env\\('ADMIN_EMAIL', 'admin@solarglow.test'\\),\\\\n\")",
+      "Bash(php -r ' *)",
+      "Bash(curl -s \"http://127.0.0.1:8000/api/products?featured=1&per_page=3\")",
+      "Bash(curl -s -o /dev/null -w \"admin login page: %{http_code}\\\\n\" http://127.0.0.1:8000/admin/login)",
+      "Bash(rm -f About.tsx Cart.tsx Checkout.tsx Contact.tsx FAQs.tsx NotFound.tsx OrderTracking.tsx ProductDetail.tsx ReturnRefund.tsx SolarEducation.tsx TermsOfService.tsx)",
+      "Read(//c/c/laragon/www/solar-glow/frontend/src/**)",
+      "Bash(rm -f src/components/ui/sonner.tsx src/data/products.ts)",
+      "Bash(rmdir src/data)",
+      "Bash(npm run *)",
+      "Bash(npx tsc *)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://127.0.0.1:8000/api/categories)",
+      "Bash(curl -s -X POST http://127.0.0.1:8000/api/orders -H \"Content-Type: application/json\" -H \"Accept: application/json\" -d '{\"customer_name\":\"Test Buyer\",\"email\":\"buyer@test.com\",\"phone\":\"+962700000000\",\"address\":\"12 Sun Street\",\"city\":\"Amman\",\"items\":[{\"product_id\":1,\"quantity\":2},{\"product_id\":9,\"quantity\":1}]}')",
+      "Bash(curl -s http://127.0.0.1:8000/api/products/solarg-premium-400w-solar-panel)",
+      "Bash(php -r '$d=json_decode\\(stream_get_contents\\(STDIN\\),true\\); echo \"stock now: \".$d[\"data\"][\"stock_quantity\"];')"
+    ]
+  }
+}
