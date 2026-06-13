@@ -12,8 +12,9 @@ const Navbar = () => {
 
   const links = [
     { to: "/products", label: t("Catalogue", "المنتجات") },
+    { to: "/calculator", label: t("Calculator", "الحاسبة") },
+    { to: "/education", label: t("Learn", "تعلّم") },
     { to: "/about", label: t("About", "من نحن") },
-    { to: "/faqs", label: t("FAQs", "الأسئلة") },
     { to: "/orders/tracking", label: t("Track Order", "تتبع الطلب") },
     { to: "/contact", label: t("Contact", "اتصل بنا") },
   ];

@@ -85,6 +85,11 @@ export interface ContactPayload {
   message: string;
 }
 
+export interface ChatMessage {
+  role: "user" | "assistant";
+  content: string;
+}
+
 export interface Paginated<T> {
   data: T[];
   meta: { current_page: number; last_page: number; total: number };

@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\AssistantController;
 use App\Http\Controllers\Api\CategoryController;
 use App\Http\Controllers\Api\ContactMessageController;
 use App\Http\Controllers\Api\FaqController;
@@ -20,4 +21,9 @@ Route::middleware('throttle:60,1')->group(function () {
 Route::middleware('throttle:10,1')->group(function () {
     Route::post('/orders', [OrderController::class, 'store']);
     Route::post('/contact', [ContactMessageController::class, 'store']);
+});
+
+// The assistant calls the Claude API per request, so keep it on a tighter limit.
+Route::middleware('throttle:15,1')->group(function () {
+    Route::post('/assistant/chat', [AssistantController::class, 'chat']);
 });

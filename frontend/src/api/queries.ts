@@ -2,6 +2,7 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiGet, apiPost } from "./client";
 import type {
   Category,
+  ChatMessage,
   CheckoutPayload,
   ContactPayload,
   Faq,
@@ -74,4 +75,10 @@ export const usePlaceOrder = () =>
 export const useSendContactMessage = () =>
   useMutation({
     mutationFn: (payload: ContactPayload) => apiPost<{ message: string }>("/contact", payload),
+  });
+
+export const useAssistantChat = () =>
+  useMutation({
+    mutationFn: (messages: ChatMessage[]) =>
+      apiPost<{ reply: string }>("/assistant/chat", { messages }),
   });

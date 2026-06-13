@@ -14,6 +14,7 @@ import About from "@/pages/About";
 import Contact from "@/pages/Contact";
 import FAQs from "@/pages/FAQs";
 import SolarEducation from "@/pages/SolarEducation";
+import Calculator from "@/pages/Calculator";
 import ReturnRefund from "@/pages/ReturnRefund";
 import TermsOfService from "@/pages/TermsOfService";
 import NotFound from "@/pages/NotFound";
@@ -41,6 +42,7 @@ const App = () => (
               <Route path="/faqs" element={<FAQs />} />
               <Route path="/education" element={<SolarEducation />} />
               <Route path="/solar-education" element={<SolarEducation />} />
+              <Route path="/calculator" element={<Calculator />} />
               <Route path="/return-refund" element={<ReturnRefund />} />
               <Route path="/terms" element={<TermsOfService />} />
               <Route path="*" element={<NotFound />} />

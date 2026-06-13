@@ -3,6 +3,7 @@ import { useLocation } from "react-router-dom";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import GrainOverlay from "@/components/decor/GrainOverlay";
+import AssistantWidget from "@/components/assistant/AssistantWidget";
 
 export default function MainLayout({ children }: { children: ReactNode }) {
   const { pathname } = useLocation();
@@ -17,6 +18,7 @@ export default function MainLayout({ children }: { children: ReactNode }) {
       <Navbar />
       <main className="flex-1">{children}</main>
       <Footer />
+      <AssistantWidget />
     </div>
   );
 }

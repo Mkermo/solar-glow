@@ -25,7 +25,25 @@
       "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://127.0.0.1:8000/api/categories)",
       "Bash(curl -s -X POST http://127.0.0.1:8000/api/orders -H \"Content-Type: application/json\" -H \"Accept: application/json\" -d '{\"customer_name\":\"Test Buyer\",\"email\":\"buyer@test.com\",\"phone\":\"+962700000000\",\"address\":\"12 Sun Street\",\"city\":\"Amman\",\"items\":[{\"product_id\":1,\"quantity\":2},{\"product_id\":9,\"quantity\":1}]}')",
       "Bash(curl -s http://127.0.0.1:8000/api/products/solarg-premium-400w-solar-panel)",
-      "Bash(php -r '$d=json_decode\\(stream_get_contents\\(STDIN\\),true\\); echo \"stock now: \".$d[\"data\"][\"stock_quantity\"];')"
+      "Bash(php -r '$d=json_decode\\(stream_get_contents\\(STDIN\\),true\\); echo \"stock now: \".$d[\"data\"][\"stock_quantity\"];')",
+      "Bash(echo \"TSC EXIT: $?\")",
+      "Bash(cd /c/laragon/www/solar-glow/backend && grep -nE \"^DB_|^APP_URL\" .env)",
+      "Read(//c/c/laragon/www/solar-glow/backend/**)",
+      "Bash(which mysql *)",
+      "Read(//c/laragon/bin/mysql/**)",
+      "Bash(/c/laragon/bin/mysql/mysql-8.4.3-winx64/bin/mysql.exe -u root -e \"CREATE DATABASE IF NOT EXISTS solarg CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci; SHOW DATABASES LIKE 'solarg';\")",
+      "Bash(/c/laragon/bin/mysql/mysql-8.4.3-winx64/bin/mysql.exe -u root solarg -e \"SELECT \\(SELECT COUNT\\(*\\) FROM products\\) AS products, \\(SELECT COUNT\\(*\\) FROM categories\\) AS categories, \\(SELECT COUNT\\(*\\) FROM faqs\\) AS faqs, \\(SELECT COUNT\\(*\\) FROM users\\) AS users;\")",
+      "Bash(curl -s \"http://127.0.0.1:8000/api/categories\")",
+      "Bash(curl -s -o /dev/null -w \"products: %{http_code} | admin login: \" \"http://127.0.0.1:8000/api/products\")",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" \"http://127.0.0.1:8000/admin/login\")",
+      "Read(//c/laragon/etc/apache2/sites-enabled//**)",
+      "Bash(cat /c/laragon/www/solar-glow/../../etc/apache2/sites-enabled/auto.solar-glow.test.conf 2>/dev/null; echo \"---one auto example for format---\"; cat /c/laragon/etc/apache2/sites-enabled/auto.open-design.test.conf 2>/dev/null)",
+      "Read(//c/laragon/etc/apache2/sites-enabled/**)",
+      "Bash(echo \"=== hosts entries for .test ===\"; grep -iE \"solarg|solar-glow\" /c/Windows/System32/drivers/etc/hosts 2>/dev/null || echo \"\\(no solarg/solar-glow entry found in hosts\\)\")",
+      "Read(//c/Windows/System32/drivers/etc/**)"
+    ],
+    "additionalDirectories": [
+      "c:\\laragon\\etc\\apache2\\sites-enabled"
     ]
   }
 }
